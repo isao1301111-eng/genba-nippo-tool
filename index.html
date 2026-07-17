@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>打ち込みゼロ日報 | 現場日報 自動生成ツール</title>
+<style>
+  :root{
+    --bg:#0f1115; --card:#171a21; --card2:#1e222b; --line:#2b303c;
+    --txt:#eef1f6; --muted:#98a1b3; --accent:#e8462f; --accent2:#ffb020;
+    --ok:#28c07a; --radius:14px;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f5f6f8; --card:#ffffff; --card2:#f0f2f5; --line:#dfe3ea;
+           --txt:#171a21; --muted:#5c6678; }
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  body{margin:0; background:var(--bg); color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+    padding-bottom:120px; line-height:1.6}
+  header{position:sticky; top:0; z-index:50; background:linear-gradient(135deg,#e8462f,#b32d1c);
+    color:#fff; padding:14px 16px; box-shadow:0 2px 12px rgba(0,0,0,.25)}
+  header h1{margin:0; font-size:18px; letter-spacing:.02em}
+  header p{margin:2px 0 0; font-size:12px; opacity:.9}
+  .wrap{max-width:720px; margin:0 auto; padding:14px}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px; margin-bottom:12px}
+  .card h2{margin:0 0 10px; font-size:14px; color:var(--muted); font-weight:600;
+    display:flex; align-items:center; gap:6px}
+  .card h2 .no{background:var(--accent); color:#fff; width:20px; height:20px; border-radius:6px;
+    display:grid; place-items:center; font-size:11px}
+  .chips{display:flex; flex-wrap:wrap; gap:8px}
+  .chip{border:1px solid var(--line); background:var(--card2); color:var(--txt);
+    padding:11px 14px; border-radius:999px; font-size:15px; cursor:pointer; user-select:none;
+    min-height:44px; display:inline-flex; align-items:center; transition:.12s}
+  .chip:active{transform:scale(.96)}
+  .chip.on{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
+  .chip.add{border-style:dashed; color:var(--muted)}
+  .chip.del-mode{border-color:#e8462f; color:#e8462f; background:rgba(232,70,47,.08)}
+  .search{display:none; width:100%; padding:12px; border-radius:10px; border:1px solid var(--line);
+    background:var(--card2); color:var(--txt); font-size:16px; margin-bottom:10px; font-family:inherit}
+  .search.show{display:block}
+  .abtn{width:auto!important; padding:0 12px!important; font-size:13px!important; white-space:nowrap}
+  .tag{display:inline-block; font-size:10px; background:rgba(59,130,246,.15); color:#3b82f6;
+    border:1px solid #3b82f6; border-radius:999px; padding:1px 8px; margin-left:4px; vertical-align:middle}
+  .meta{font-size:11px; color:var(--muted); text-align:right; line-height:1.5; white-space:nowrap}
+  #sitePanel{border-top:1px dashed var(--line); margin-top:12px; padding-top:10px}
+  .chip.st-wip    {background:#3b82f6; border-color:#3b82f6; color:#fff; font-weight:700}
+  .chip.st-multi  {background:#8b5cf6; border-color:#8b5cf6; color:#fff; font-weight:700}
+  .chip.st-partial{background:#eab308; border-color:#eab308; color:#1a1a1a; font-weight:700}
+  .chip.st-almost {background:#f97316; border-color:#f97316; color:#fff; font-weight:700}
+  .chip.st-done   {background:var(--ok); border-color:var(--ok); color:#fff; font-weight:700}
+  .chip.st-hold   {background:#6b7280; border-color:#6b7280; color:#fff; font-weight:700}
+  .chip small{opacity:.9; font-weight:400; font-size:11px; margin-left:4px}
+  #sheet{width:400px; max-width:94vw}
+  #sheet h3{margin:0 0 4px; font-size:17px}
+  #sheet .lbl{color:var(--muted); font-size:12px; margin:14px 0 7px}
+  .sbtn{display:flex; align-items:center; gap:9px; width:100%; text-align:left;
+    padding:12px 13px; border-radius:10px; border:1px solid var(--line);
+    background:var(--card2); color:var(--txt); font-size:15px; cursor:pointer; margin-bottom:7px}
+  .sbtn.sel{border-color:var(--accent); background:rgba(232,70,47,.14); font-weight:700}
+  .sbtn .ic{font-size:17px}
+  .handover{border:2px solid var(--ok)!important}
+  .sum{background:var(--card2); border:1px solid var(--line); border-radius:10px;
+    padding:10px 12px; font-size:13px; margin-bottom:10px}
+  .sum b{color:var(--ok); font-size:15px}
+  .sum .nx{color:var(--accent2)}
+  .row{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+  .stepper{display:flex; align-items:center; gap:14px}
+  .rnd{width:52px; height:52px; border-radius:50%; border:1px solid var(--line);
+    background:var(--card2); color:var(--txt); font-size:24px; cursor:pointer; line-height:1}
+  .rnd:active{transform:scale(.94)}
+  .big{font-size:30px; font-weight:700; min-width:64px; text-align:center}
+  .unit{color:var(--muted); font-size:14px}
+  input[type=range]{width:100%; accent-color:var(--accent); height:36px}
+  .prow{display:flex; align-items:center; gap:8px}
+  .plabel{flex:1; color:var(--muted); font-size:14px}
+  .pval{font-size:22px; font-weight:700}
+  .pval.acc{color:var(--accent2)}
+  .pbar{display:flex; height:16px; border-radius:999px; overflow:hidden;
+    background:var(--card2); border:1px solid var(--line); margin:14px 0 12px}
+  .pbar i{display:block; height:100%; transition:width .25s}
+  .ptotal{display:flex; align-items:baseline; gap:8px; background:var(--card2);
+    border:1px solid var(--line); border-radius:10px; padding:11px 13px}
+  .ptotal b{font-size:32px; color:var(--ok); line-height:1}
+  .ptotal em{margin-left:auto; font-style:normal; font-size:12px; color:var(--muted); text-align:right}
+  .lbl2{color:var(--muted); font-size:12px; margin:0 0 8px}
+  .ninbox{background:var(--card2); border:1px solid var(--line); border-radius:10px; padding:9px 12px}
+  .nrow{display:flex; align-items:center; gap:9px; padding:6px 0; font-size:14px}
+  .nrow>span:first-child{flex:1; color:var(--muted)}
+  .nrow b{font-size:19px; min-width:46px; text-align:right}
+  .nrow small{color:var(--muted); font-size:11px; min-width:96px; text-align:right}
+  .nrow.tot{border-top:1px solid var(--line); margin-top:3px; padding-top:9px}
+  .nrow.tot b{color:var(--ok); font-size:25px}
+  .mat{display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--card2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; margin-bottom:8px}
+  .mat .nm{flex:1; font-size:15px}
+  .mini{width:36px; height:36px; border-radius:8px; border:1px solid var(--line);
+    background:var(--card); color:var(--txt); font-size:18px; cursor:pointer; line-height:1}
+  .qty{min-width:26px; text-align:center; font-weight:700}
+  .del{background:none; border:none; color:var(--muted); font-size:18px; cursor:pointer; padding:4px}
+  textarea{width:100%; background:var(--card2); border:1px solid var(--line); color:var(--txt);
+    border-radius:10px; padding:10px; font-size:15px; font-family:inherit; min-height:70px; resize:vertical}
+  .mic{display:inline-flex; align-items:center; gap:6px; background:var(--accent2); color:#1a1a1a;
+    border:none; border-radius:999px; padding:11px 16px; font-size:15px; font-weight:700; cursor:pointer; min-height:44px}
+  .mic.rec{background:#e8462f; color:#fff; animation:pulse 1s infinite}
+  @keyframes pulse{50%{opacity:.55}}
+  .hint{font-size:12px; color:var(--muted); margin-top:6px}
+  .photos{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px}
+  .ph{position:relative; width:84px; height:84px; border-radius:10px; overflow:hidden; border:1px solid var(--line)}
+  .ph img{width:100%; height:100%; object-fit:cover; display:block}
+  .ph span{position:absolute; left:0; right:0; bottom:0; background:rgba(0,0,0,.65); color:#fff;
+    font-size:9px; text-align:center; padding:2px 1px}
+  .ph b{position:absolute; top:2px; right:2px; background:rgba(0,0,0,.6); color:#fff; width:18px; height:18px;
+    border-radius:50%; display:grid; place-items:center; font-size:12px; cursor:pointer}
+  .filebtn{display:inline-block; background:var(--card2); border:1px dashed var(--line); color:var(--muted);
+    padding:12px 16px; border-radius:10px; cursor:pointer; font-size:15px}
+  .out{background:var(--card2); border:1px solid var(--line); border-radius:10px; padding:12px;
+    white-space:pre-wrap; font-family:ui-monospace,"SFMono-Regular",Consolas,"Courier New",monospace;
+    font-size:13px; line-height:1.75; max-height:420px; overflow:auto}
+  .bar{position:fixed; left:0; right:0; bottom:0; background:var(--card); border-top:1px solid var(--line);
+    padding:10px 14px calc(10px + env(safe-area-inset-bottom)); display:flex; gap:10px; z-index:60}
+  .bar button{flex:1; border:none; border-radius:12px; padding:15px; font-size:16px; font-weight:700; cursor:pointer}
+  .primary{background:var(--accent); color:#fff}
+  .ghost{background:var(--card2); color:var(--txt); border:1px solid var(--line)!important; flex:0 0 92px!important}
+  .guard{border-left:3px solid var(--ok); background:rgba(40,192,122,.08); padding:9px 11px;
+    border-radius:0 8px 8px 0; font-size:12px; color:var(--muted); margin-top:10px}
+  .guard b{color:var(--ok)}
+  dialog{border:none; border-radius:14px; background:var(--card); color:var(--txt); padding:18px;
+    max-width:92vw; width:360px; border:1px solid var(--line)}
+  dialog::backdrop{background:rgba(0,0,0,.6)}
+  dialog input{width:100%; padding:12px; border-radius:10px; border:1px solid var(--line);
+    background:var(--card2); color:var(--txt); font-size:16px; margin:10px 0}
+  dialog .row{justify-content:flex-end; gap:8px}
+  dialog button{padding:11px 16px; border-radius:10px; border:1px solid var(--line);
+    background:var(--card2); color:var(--txt); font-size:15px; cursor:pointer}
+  dialog button.p{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:700}
+  .toast{position:fixed; left:50%; transform:translateX(-50%); bottom:96px; background:#111; color:#fff;
+    padding:11px 18px; border-radius:999px; font-size:14px; z-index:99; opacity:0; pointer-events:none; transition:.25s}
+  .toast.on{opacity:1}
+  .foot{text-align:center; color:var(--muted); font-size:11px; padding:6px 0 4px}
+</style>
+</head>
+<body>
+<header>
+  <h1>打ち込みゼロ日報</h1>
+  <p>タップと声だけ。現場日報を30秒で。</p>
+</header>
+
+<div class="wrap">
+
+  <div class="card">
+    <h2><span class="no">1</span>現場・日付</h2>
+    <div class="chips" id="sites"></div>
+    <div id="sitePanel" style="display:none">
+      <input class="search show" id="siteSearch" placeholder="🔍 現場名で検索…">
+      <div class="lbl2">並び替え</div>
+      <div class="chips" id="siteSortChips"></div>
+      <div class="lbl2" style="margin-top:8px">タグで絞り込み</div>
+      <div class="chips" id="siteTagFilter"></div>
+      <div id="siteList" style="margin-top:10px"></div>
+    </div>
+    <div class="hint" id="siteHint">直近で使った現場だけ表示しています。「📋 一覧」で全現場をタグ・並び替えつきで確認できます。</div>
+    <div class="row" style="margin-top:12px">
+      <span class="unit">日付</span>
+      <div class="chips" id="dates"></div>
+    </div>
+  </div>
+
+  <div class="card handover">
+    <h2><span class="no" style="background:var(--ok)">📋</span>この現場の工程状況（引き継ぎ用）</h2>
+    <div class="ptotal" style="margin-bottom:10px">
+      <span class="unit">全体進捗</span>
+      <b id="totalVal">0</b><span class="unit">%</span>
+      <em id="ninBadge">合計 0.0 人工</em>
+    </div>
+    <div class="pbar"><i id="pbDone" style="background:var(--ok)"></i></div>
+    <div class="sum" id="stepSummary">現場を選ぶと表示されます</div>
+    <div class="chips" id="stepStatus"></div>
+    <div class="hint">工程をタップ →「状況」と「箇所」を選べます（⬜未着手 / 🔵進行中 / 🟣数か所進行中 / 🟡一部完了 / 🟠ほぼ完了 / ✅完了 / ⏸️中断）<br>
+      現場ごとに記憶します。<b>次に入る人がこの現場をタップすれば、どの工程がどこまで・どの面が終わっているか一目で分かります。</b></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="no">2</span>天候・作業時間・人数</h2>
+    <div class="chips" id="weather"></div>
+    <div class="chips" style="margin-top:10px" id="hours"></div>
+    <div class="row" style="margin-top:14px">
+      <span class="unit">作業人数</span>
+      <div class="stepper">
+        <button class="rnd" data-n="-1">−</button>
+        <span class="big" id="crew">3</span><span class="unit">名</span>
+        <button class="rnd" data-n="1">＋</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="no">3</span>本日の工程（複数可）</h2>
+    <div class="chips" id="steps"></div>
+    <div id="stepAreasList" style="margin-top:10px"></div>
+    <div class="hint">工程を選ぶと下に表示されます。「📍 箇所」でどの面・階をやったか記録できます。</div>
+  </div>
+
+  <div class="card">
+    <h2><span class="no">4</span>本日 使用した塗料・材料</h2>
+    <div id="usedList"></div>
+    <div class="chips" id="usedPick"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="no">5</span>人工（にんく）</h2>
+    <div class="lbl2">人数 × 作業時間から自動計算（別入力なし）</div>
+    <div class="ninbox">
+      <div class="nrow">
+        <span>本日の人工</span>
+        <b id="ninToday">0.0</b>
+        <small id="ninCalc"></small>
+      </div>
+      <div class="nrow">
+        <span>前回までの人工</span>
+        <button class="mini" data-nin="-0.5">−</button>
+        <b id="ninPrev">0.0</b>
+        <button class="mini" data-nin="0.5">＋</button>
+      </div>
+      <div class="nrow tot">
+        <span>合計人工</span>
+        <b id="ninTotal">0.0</b><span class="unit">人工</span>
+      </div>
+    </div>
+    <div class="hint">終日=1.0 / 午前のみ・午後のみ=0.5 / 中止=0 で計算。前回までの人工は現場ごとに記憶し、日報作成時に本日分を加算します。<br>
+      ※全体進捗％は「工程の状況」から自動算出され、上の引き継ぎ欄に表示されます。</div>
+  </div>
+
+  <div class="card">
+    <h2><span class="no">6</span>写真（撮影日時を自動取得）</h2>
+    <label class="filebtn">📷 写真を選ぶ
+      <input type="file" id="pfile" accept="image/*" multiple hidden>
+    </label>
+    <div class="photos" id="photos"></div>
+    <div class="hint">写真の撮影日時（EXIF）を自動で読み取ります。中身の自動判読は行いません。</div>
+  </div>
+
+  <div class="card">
+    <h2><span class="no">7</span>特記事項（声でOK）</h2>
+    <button class="mic" data-t="note">🎤 話す</button>
+    <textarea id="note" placeholder="タップして話すか、必要なら直接入力"></textarea>
+  </div>
+
+  <div class="card">
+    <h2><span class="no">8</span>翌日／次回の予定</h2>
+    <div class="chips" id="nsteps"></div>
+    <div id="nstepAreasList" style="margin-top:10px"></div>
+    <div style="margin-top:12px">
+      <button class="mic" data-t="nnote">🎤 話す</button>
+      <textarea id="nnote" placeholder="翌日の段取り・注意点など"></textarea>
+    </div>
+  </div>
+
+  <div class="card" style="border-color:var(--accent2)">
+    <h2><span class="no" style="background:var(--accent2); color:#1a1a1a">9</span>翌日／次回に必要な塗料・材料</h2>
+    <div id="needList"></div>
+    <div class="chips" id="needPick"></div>
+    <div class="hint">⚠️ 欠品による現場ストップを防ぎます。日報からそのまま発注リストとして使えます。</div>
+  </div>
+
+  <div class="card">
+    <h2>📄 日報プレビュー</h2>
+    <div class="out" id="out">下の「日報を作成」を押してください。</div>
+    <div class="guard">
+      <b>✓ ハルシネーション防止設計</b><br>
+      選択・入力された情報のみで作成します。未入力の項目はAIに推測させず「記載なし」と明示します。
+    </div>
+  </div>
+
+  <div class="foot">Isao Matsumoto / 現場27年 × AI — 打ち込みゼロ日報 v1.0</div>
+</div>
+
+<div class="bar">
+  <button class="ghost" id="reset">クリア</button>
+  <button class="primary" id="make">日報を作成</button>
+  <button class="primary" id="copy" style="background:var(--ok)">コピー</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<dialog id="sheet">
+  <h3 id="shTitle">工程</h3>
+  <div class="lbl">この工程の状況</div>
+  <div id="shStatus"></div>
+  <div class="lbl">箇所（任意・複数可）— どこが終わった／どこをやっているか</div>
+  <div class="chips" id="shAreas"></div>
+  <div class="row" style="margin-top:16px">
+    <button class="p" id="shClose" style="width:100%; padding:13px">決定</button>
+  </div>
+</dialog>
+
+<dialog id="tdlg">
+  <h3 id="tdTitle">タグ</h3>
+  <div class="lbl">この現場のタグ（複数可）</div>
+  <div class="chips" id="tdTags"></div>
+  <div class="row" style="margin-top:16px">
+    <button class="p" id="tdClose" style="width:100%; padding:13px">決定</button>
+  </div>
+</dialog>
+
+<dialog id="apick">
+  <h3 id="apTitle">箇所</h3>
+  <div class="lbl">箇所（複数可）</div>
+  <div class="chips" id="apAreas"></div>
+  <div class="row" style="margin-top:16px">
+    <button class="p" id="apClose" style="width:100%; padding:13px">決定</button>
+  </div>
+</dialog>
+
+<dialog id="dlg">
+  <div style="font-weight:700" id="dlgTitle">追加</div>
+  <input id="dlgInput" placeholder="名称を入力">
+  <div class="row">
+    <button id="dlgNo">キャンセル</button>
+    <button class="p" id="dlgOk">追加</button>
+  </div>
+</dialog>
+
+<script>
+const LS = {
+  sites:'nippo_sites_v1',
+  mats:'nippo_mats_v1',
+  nin:'nippo_nin_v1',
+  stat:'nippo_stepstat_v1',
+  steps:'nippo_steps_v1',
+  areas:'nippo_areas_v1',
+  used:'nippo_siteused_v1',
+  tags:'nippo_sitetags_v1',
+  taglist:'nippo_taglist_v1'
+};
+const load = (k,d)=>{ try{ return JSON.parse(localStorage.getItem(k)) ?? d }catch(e){ return d } };
+const save = (k,v)=> localStorage.setItem(k, JSON.stringify(v));
+
+let sites = load(LS.sites, ['田中様邸','佐藤様邸','山本ビル']);
+let mats  = load(LS.mats , ['シーラー(下塗り材)','中塗り材','上塗り材','コーキング材','養生テープ','マスカー','ローラー','刷毛','希釈用シンナー']);
+let ninStore  = load(LS.nin, {});    // 現場ごとの累計人工を記憶
+let statStore = load(LS.stat, {});   // 現場ごとの工程状況（引き継ぎ用）を記憶
+let siteUsed  = load(LS.used, {});   // 現場ごとの最終使用日時（直近表示用）
+let siteTags  = load(LS.tags, {});   // 現場ごとのタグ {現場名:[タグ...]}
+let TAGS      = load(LS.taglist, ['進行中','完了','見積中','定期','急ぎ']);
+const RECENT_SITES = 5;              // 通常表示する直近現場の数
+let sitePanelOpen = false;           // 一覧パネルの開閉
+let siteSort  = 'recent';            // 並び替え: recent | name | nin
+let tagFilter = null;                // タグ絞り込み（null=すべて）
+let editTagMode = false;             // タグ削除モード
+
+const state = {
+  site:null, date:null, weather:null, hours:null, crew:3,
+  steps:new Set(), note:'', nsteps:new Set(), nnote:'',
+  used:{}, need:{}, photos:[], stepStatus:{}, ninPrev:0,
+  stepAreas:{}, nstepAreas:{}      // 本日/翌日の工程ごとの箇所 {工程:[箇所...]}
+};
+
+const WEATHER = ['☀️ 晴れ','⛅ 曇り','🌧️ 雨','🌦️ 一時雨','💨 強風','❄️ 雪'];
+const HOURS   = ['終日','午前のみ','午後のみ','中止'];
+const HFACTOR = { '終日':1, '午前のみ':0.5, '午後のみ':0.5, '中止':0 };
+
+/* 本日の人工＝人数×作業時間係数 / 合計＝前回まで＋本日 */
+const ninToday = () => state.hours ? +(state.crew * HFACTOR[state.hours]).toFixed(1) : 0;
+const ninTotal = () => +(state.ninPrev + ninToday()).toFixed(1);
+
+/* 全体進捗％＝工程の状況から自動算出（各工程を均等配分し、状況の達成率で加重） */
+function progressPct(){
+  if(!STEPS.length) return 0;
+  const sum = STEPS.reduce((a,v)=> a + ST(stOf(v)).f, 0);
+  return Math.round(sum / STEPS.length * 100);
+}
+let STEPS = load(LS.steps, ['足場設置','高圧洗浄','養生','下地補修','コーキング','下塗り','中塗り','上塗り','付帯部塗装','手直し','片付け','足場解体']);
+const edit = { steps:false, areas:false };   // 削除モードのON/OFF
+
+/* 工程の状況（大現場では1工程が完全に終わる前に次へ進むため多段階） */
+const STATUS = [
+  { k:'',        i:'⬜',  n:'未着手',      c:'',           f:0    },
+  { k:'wip',     i:'🔵',  n:'進行中',      c:'st-wip',     f:0.25 },
+  { k:'multi',   i:'🟣',  n:'数か所進行中', c:'st-multi',   f:0.40 },
+  { k:'partial', i:'🟡',  n:'一部完了',    c:'st-partial', f:0.50 },
+  { k:'almost',  i:'🟠',  n:'ほぼ完了',    c:'st-almost',  f:0.85 },
+  { k:'done',    i:'✅',  n:'完了',        c:'st-done',    f:1.00 },
+  { k:'hold',    i:'⏸️',  n:'中断',        c:'st-hold',    f:0.40 }
+];
+const ST = k => STATUS.find(s=>s.k===(k||'')) || STATUS[0];
+let AREAS = load(LS.areas, ['北面','南面','東面','西面','屋根','付帯部','1F','2F','3F以上','内部','その他']);
+
+/* 旧データ（文字列）→ 新形式 {s, areas} へ正規化 */
+const norm = v => (typeof v === 'string') ? { s:v, areas:[] }
+               : (v && typeof v === 'object') ? { s:v.s||'', areas:v.areas||[] }
+               : { s:'', areas:[] };
+const stOf = w => norm(state.stepStatus[w]).s;
+
+const toast = m => { const t=document.getElementById('toast'); t.textContent=m; t.classList.add('on'); setTimeout(()=>t.classList.remove('on'),1600) };
+
+/* ---------- 汎用チップ描画 ---------- */
+function chips(elId, items, isOn, onTap, addLabel, onAdd){
+  const el = document.getElementById(elId);
+  el.innerHTML = '';
+  items.forEach(v=>{
+    const b = document.createElement('div');
+    b.className = 'chip' + (isOn(v) ? ' on' : '');
+    b.textContent = v;
+    b.onclick = ()=>{ onTap(v); render(); };
+    el.appendChild(b);
+  });
+  if(addLabel){
+    const a = document.createElement('div');
+    a.className='chip add'; a.textContent = addLabel;
+    a.onclick = onAdd;
+    el.appendChild(a);
+  }
+}
+
+/* ---------- 現場チップ（直近のみ表示＋検索） ---------- */
+function selectSite(v){
+  state.site = (state.site===v ? null : v);
+  if(state.site){ siteUsed[state.site] = Date.now(); save(LS.used, siteUsed); }
+  state.ninPrev    = state.site ? (ninStore[state.site] ?? 0) : 0;         // 前回までの人工を復元
+  state.stepStatus = state.site ? {...(statStore[state.site] ?? {})} : {}; // 工程状況を復元
+}
+function siteChips(){
+  const el = document.getElementById('sites');
+  el.innerHTML = '';
+
+  const byRecent = [...sites].sort((a,b)=>(siteUsed[b]||0)-(siteUsed[a]||0));
+  let list = byRecent.slice(0, RECENT_SITES);
+  if(state.site && !list.includes(state.site)) list.unshift(state.site);
+
+  list.forEach(v=>{
+    const b = document.createElement('div');
+    b.className = 'chip' + (state.site===v ? ' on' : '');
+    b.textContent = v;
+    b.onclick = ()=>{ selectSite(v); render(); };
+    el.appendChild(b);
+  });
+
+  const t = document.createElement('div');
+  t.className='chip add';
+  t.textContent = sitePanelOpen ? '▲ 一覧を閉じる' : `📋 一覧（全${sites.length}件）`;
+  t.onclick = ()=>{
+    sitePanelOpen = !sitePanelOpen;
+    render();
+    if(sitePanelOpen) setTimeout(()=>document.getElementById('siteSearch').focus(),50);
+  };
+  el.appendChild(t);
+
+  const a = document.createElement('div');
+  a.className='chip add'; a.textContent='＋ 現場を追加';
+  a.onclick = ()=>ask('現場名を追加', v=>{
+    if(!sites.includes(v)){ sites.push(v); save(LS.sites,sites); }
+    if(state.site !== v) selectSite(v);      // 追加した現場をそのまま選択
+    render();
+  });
+  el.appendChild(a);
+
+  document.getElementById('sitePanel').style.display = sitePanelOpen ? 'block' : 'none';
+  document.getElementById('siteHint').textContent = sitePanelOpen
+    ? '一覧の現場名タップで選択。「🏷」でタグ編集。検索・並び替え・タグ絞り込みができます。'
+    : '直近で使った現場だけ表示しています。「📋 一覧」で全現場をタグ・並び替えつきで確認できます。';
+  if(sitePanelOpen) renderSitePanel();
+}
+
+/* ---------- 現場一覧パネル（検索・並び替え・タグ絞り込み） ---------- */
+function renderSitePanel(){
+  const sorts = [['recent','📅 直近順'],['name','🔤 名前順'],['nin','👷 人工順']];
+  const sc = document.getElementById('siteSortChips'); sc.innerHTML='';
+  sorts.forEach(([k,label])=>{
+    const b=document.createElement('div');
+    b.className='chip'+(siteSort===k?' on':'');
+    b.textContent=label;
+    b.onclick=()=>{ siteSort=k; renderSitePanel(); };
+    sc.appendChild(b);
+  });
+
+  const tf = document.getElementById('siteTagFilter'); tf.innerHTML='';
+  const all=document.createElement('div');
+  all.className='chip'+(tagFilter===null?' on':'');
+  all.textContent='すべて';
+  all.onclick=()=>{ tagFilter=null; renderSitePanel(); };
+  tf.appendChild(all);
+  TAGS.forEach(tag=>{
+    const b=document.createElement('div');
+    b.className='chip'+(tagFilter===tag?' on':'');
+    b.textContent='🏷 '+tag;
+    b.onclick=()=>{ tagFilter=(tagFilter===tag?null:tag); renderSitePanel(); };
+    tf.appendChild(b);
+  });
+
+  const q = document.getElementById('siteSearch').value.trim();
+  let list=[...sites];
+  if(q) list=list.filter(s=>s.includes(q));
+  if(tagFilter) list=list.filter(s=>(siteTags[s]||[]).includes(tagFilter));
+  if(siteSort==='recent')    list.sort((a,b)=>(siteUsed[b]||0)-(siteUsed[a]||0));
+  else if(siteSort==='name') list.sort((a,b)=>a.localeCompare(b,'ja'));
+  else                       list.sort((a,b)=>(ninStore[b]||0)-(ninStore[a]||0));
+
+  const el=document.getElementById('siteList'); el.innerHTML='';
+  list.forEach(s=>{
+    const row=document.createElement('div'); row.className='mat';
+    const nm=document.createElement('div'); nm.className='nm';
+    nm.innerHTML = (state.site===s?'✔ ':'') + s
+      + (siteTags[s]||[]).map(t=>`<span class="tag">${t}</span>`).join('');
+    nm.style.cursor='pointer';
+    nm.onclick=()=>{ selectSite(s); sitePanelOpen=false; document.getElementById('siteSearch').value=''; render(); };
+    const meta=document.createElement('div'); meta.className='meta';
+    const d=siteUsed[s]?new Date(siteUsed[s]):null;
+    meta.textContent = `${d?`${d.getMonth()+1}/${d.getDate()}`:'—'} / ${(ninStore[s]??0).toFixed(1)}人工`;
+    const tb=document.createElement('button'); tb.className='mini abtn'; tb.textContent='🏷';
+    tb.onclick=()=>openTagDlg(s);
+    row.append(nm, meta, tb);
+    el.appendChild(row);
+  });
+  if(!list.length) el.innerHTML='<div class="hint">該当する現場がありません</div>';
+}
+document.getElementById('siteSearch').addEventListener('input', renderSitePanel);
+
+/* ---------- タグ編集ダイアログ ---------- */
+const tdlg=document.getElementById('tdlg');
+let tdSite=null;
+function openTagDlg(s){
+  tdSite=s;
+  document.getElementById('tdTitle').textContent=s+' のタグ';
+  drawTdlg();
+  tdlg.showModal();
+}
+function drawTdlg(){
+  const c=document.getElementById('tdTags'); c.innerHTML='';
+  TAGS.forEach(tag=>{
+    const cur=siteTags[tdSite]||[];
+    const on=cur.includes(tag);
+    const b=document.createElement('div');
+    b.className='chip'+(editTagMode?' del-mode':(on?' on':''));
+    b.textContent=(editTagMode?'✕ ':'')+tag;
+    b.onclick=()=>{
+      if(editTagMode){
+        if(confirm(`タグ「${tag}」をリストから削除しますか？`)){
+          TAGS=TAGS.filter(x=>x!==tag); save(LS.taglist,TAGS);
+          Object.keys(siteTags).forEach(k=>{
+            siteTags[k]=(siteTags[k]||[]).filter(x=>x!==tag);
+            if(!siteTags[k].length) delete siteTags[k];
+          });
+          save(LS.tags,siteTags);
+          if(tagFilter===tag) tagFilter=null;
+        }
+      } else {
+        const nx = on ? cur.filter(x=>x!==tag) : [...cur, tag];
+        if(nx.length) siteTags[tdSite]=nx; else delete siteTags[tdSite];
+        save(LS.tags,siteTags);
+      }
+      drawTdlg(); if(sitePanelOpen) renderSitePanel();
+    };
+    c.appendChild(b);
+  });
+  const add=document.createElement('div');
+  add.className='chip add'; add.textContent='＋ タグを追加';
+  add.onclick=()=>ask('タグを追加（例：外壁のみ）', v=>{
+    if(!TAGS.includes(v)){ TAGS.push(v); save(LS.taglist,TAGS); }
+    const cur=siteTags[tdSite]||[];
+    if(!cur.includes(v)){ siteTags[tdSite]=[...cur,v]; save(LS.tags,siteTags); }
+    drawTdlg(); if(sitePanelOpen) renderSitePanel();
+  });
+  c.appendChild(add);
+  const ed=document.createElement('div');
+  ed.className='chip add'; ed.textContent=editTagMode?'✔ 削除おわり':'🗑 削除';
+  ed.onclick=()=>{ editTagMode=!editTagMode; drawTdlg(); };
+  c.appendChild(ed);
+}
+document.getElementById('tdClose').onclick=()=>{ editTagMode=false; tdlg.close(); if(sitePanelOpen) renderSitePanel(); };
+
+/* ---------- 日付 ---------- */
+function dateList(){
+  const out=[];
+  for(let i=0;i<3;i++){
+    const d=new Date(); d.setDate(d.getDate()-i);
+    out.push(fmtDate(d));
+  }
+  return out;
+}
+function fmtDate(d){
+  const w=['日','月','火','水','木','金','土'][d.getDay()];
+  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}（${w}）`;
+}
+
+/* ---------- 材料の増減 ---------- */
+function matRows(containerId, store){
+  const el = document.getElementById(containerId);
+  el.innerHTML='';
+  Object.keys(store).forEach(nm=>{
+    const row=document.createElement('div'); row.className='mat';
+    const n=document.createElement('div'); n.className='nm'; n.textContent=nm;
+    const minus=document.createElement('button'); minus.className='mini'; minus.textContent='−';
+    const q=document.createElement('span'); q.className='qty'; q.textContent=store[nm];
+    const plus=document.createElement('button'); plus.className='mini'; plus.textContent='＋';
+    const u=document.createElement('span'); u.className='unit'; u.textContent='缶/個';
+    const del=document.createElement('button'); del.className='del'; del.textContent='✕';
+    minus.onclick=()=>{ store[nm]=Math.max(0,store[nm]-1); if(store[nm]===0) delete store[nm]; render(); };
+    plus.onclick =()=>{ store[nm]++; render(); };
+    del.onclick  =()=>{ delete store[nm]; render(); };
+    row.append(n,minus,q,plus,u,del);
+    el.appendChild(row);
+  });
+}
+
+/* ---------- 追加ダイアログ ---------- */
+const dlg=document.getElementById('dlg');
+function ask(title, cb){
+  document.getElementById('dlgTitle').textContent=title;
+  const inp=document.getElementById('dlgInput'); inp.value='';
+  dlg.showModal(); setTimeout(()=>inp.focus(),50);
+  document.getElementById('dlgOk').onclick=()=>{
+    const v=inp.value.trim(); dlg.close(); if(v) cb(v);
+  };
+  document.getElementById('dlgNo').onclick=()=>dlg.close();
+}
+
+/* ---------- 描画 ---------- */
+function render(){
+  siteChips();
+  chips('dates', dateList(), v=>state.date===v, v=>state.date=v);
+  chips('weather', WEATHER, v=>state.weather===v, v=>state.weather=(state.weather===v?null:v));
+  chips('hours', HOURS, v=>state.hours===v, v=>state.hours=(state.hours===v?null:v));
+  stepChips('steps', v=>state.steps.has(v), v=>{
+    if(state.steps.has(v)){ state.steps.delete(v); delete state.stepAreas[v]; }
+    else {
+      state.steps.add(v);
+      const c = norm(state.stepStatus[v]);
+      if(!c.s) state.stepStatus[v] = { s:'wip', areas:c.areas };   // 未着手なら自動で進行中に
+    }
+  });
+  stepAreaRows('stepAreasList', state.steps, state.stepAreas);
+  renderStepStatus();
+  stepChips('nsteps', v=>state.nsteps.has(v), v=>{
+    if(state.nsteps.has(v)){ state.nsteps.delete(v); delete state.nstepAreas[v]; }
+    else state.nsteps.add(v);
+  });
+  stepAreaRows('nstepAreasList', state.nsteps, state.nstepAreas);
+
+  chips('usedPick', mats, v=>!!state.used[v], v=>{ if(state.used[v]) delete state.used[v]; else state.used[v]=1; },
+    '＋ 材料を追加', ()=>ask('材料名を追加', v=>{ mats.push(v); save(LS.mats,mats); state.used[v]=1; render(); }));
+  chips('needPick', mats, v=>!!state.need[v], v=>{ if(state.need[v]) delete state.need[v]; else state.need[v]=1; },
+    '＋ 材料を追加', ()=>ask('材料名を追加', v=>{ mats.push(v); save(LS.mats,mats); state.need[v]=1; render(); }));
+
+  matRows('usedList', state.used);
+  matRows('needList', state.need);
+
+  document.getElementById('crew').textContent = state.crew;
+  drawProgress();
+  drawPhotos();
+}
+
+/* ---------- 工程チップ（追加・削除つき、リストは保存され次回もそのまま） ---------- */
+function stepChips(elId, isOn, onTap){
+  const el = document.getElementById(elId);
+  el.innerHTML = '';
+  STEPS.forEach(v=>{
+    const b = document.createElement('div');
+    b.className = 'chip' + (edit.steps ? ' del-mode' : (isOn(v) ? ' on' : ''));
+    b.textContent = (edit.steps ? '✕ ' : '') + v;
+    b.onclick = ()=>{
+      if(edit.steps){
+        if(confirm(`工程「${v}」をリストから削除しますか？`)){
+          STEPS = STEPS.filter(x=>x!==v); save(LS.steps, STEPS);
+          state.steps.delete(v); state.nsteps.delete(v); delete state.stepStatus[v];
+          delete state.stepAreas[v]; delete state.nstepAreas[v];
+        }
+      } else onTap(v);
+      render();
+    };
+    el.appendChild(b);
+  });
+  const a = document.createElement('div');
+  a.className='chip add'; a.textContent='＋ 工程を追加';
+  a.onclick = ()=>ask('工程を追加（例：ベランダ防水）', v=>{
+    if(!STEPS.includes(v)){ STEPS.push(v); save(LS.steps, STEPS); }
+    if(!isOn(v)) onTap(v);          // 追加した工程はそのまま選択状態に
+    render();
+  });
+  el.appendChild(a);
+  const e = document.createElement('div');
+  e.className='chip add'; e.textContent = edit.steps ? '✔ 削除おわり' : '🗑 削除';
+  e.onclick = ()=>{ edit.steps = !edit.steps; render(); };
+  el.appendChild(e);
+}
+
+/* ---------- 工程状況（引き継ぎ用）：⬜未着手 → 🔄進行中 → ✅完了 ---------- */
+function renderStepStatus(){
+  const el = document.getElementById('stepStatus');
+  el.innerHTML = '';
+  STEPS.forEach(v=>{
+    const d = norm(state.stepStatus[v]);
+    const s = ST(d.s);
+    const b = document.createElement('div');
+    b.className = 'chip' + (s.c ? ' ' + s.c : '');
+    b.innerHTML = `${s.i} ${v}` + (d.areas.length ? `<small>${d.areas.join('・')}</small>` : '');
+    b.onclick = ()=> openSheet(v);
+    el.appendChild(b);
+  });
+
+  const sum = document.getElementById('stepSummary');
+  if(!state.site){ sum.textContent = '現場を選ぶと表示されます'; return; }
+
+  const cnt = k => STEPS.filter(v=>stOf(v)===k).length;
+  const done = cnt('done');
+  const moving = cnt('wip') + cnt('multi') + cnt('partial') + cnt('almost');
+  const hold = cnt('hold');
+  const next = STEPS.find(v=>{ const s=stOf(v); return s!=='done' && s!=='hold'; });
+  sum.innerHTML =
+    `<b>✅ 完了 ${done}</b> / 全${STEPS.length}工程　🔵 動いている工程 ${moving}`
+    + (hold ? `　⏸️ 中断 ${hold}` : '') + '<br>'
+    + (next ? `➡️ 次にやる工程：<span class="nx"><b>${next}</b></span>` : '🎉 全工程 完了');
+}
+
+/* ---------- 工程タップ → 状況と箇所を選ぶシート ---------- */
+const sheet = document.getElementById('sheet');
+let sheetStep = null;
+function openSheet(step){
+  sheetStep = step;
+  document.getElementById('shTitle').textContent = step;
+  drawSheet();
+  sheet.showModal();
+}
+function drawSheet(){
+  const d = norm(state.stepStatus[sheetStep]);
+  const sc = document.getElementById('shStatus');
+  sc.innerHTML = '';
+  STATUS.forEach(s=>{
+    const b = document.createElement('button');
+    b.className = 'sbtn' + (d.s === s.k ? ' sel' : '');
+    b.innerHTML = `<span class="ic">${s.i}</span><span>${s.n}</span>`;
+    b.onclick = ()=>{
+      const cur = norm(state.stepStatus[sheetStep]);
+      if(!s.k && !cur.areas.length) delete state.stepStatus[sheetStep];
+      else state.stepStatus[sheetStep] = { s:s.k, areas:cur.areas };
+      drawSheet(); render();
+    };
+    sc.appendChild(b);
+  });
+  areaChips(document.getElementById('shAreas'),
+    ()=> norm(state.stepStatus[sheetStep]).areas,
+    arr=>{ const c = norm(state.stepStatus[sheetStep]); c.areas = arr; state.stepStatus[sheetStep] = c; },
+    drawSheet);
+}
+document.getElementById('shClose').onclick = ()=> sheet.close();
+
+/* ---------- 箇所チップ（共通・追加/削除つき） ---------- */
+function areaChips(container, getA, setA, redraw){
+  container.innerHTML = '';
+  AREAS.forEach(a=>{
+    const on = getA().includes(a);
+    const b = document.createElement('div');
+    b.className = 'chip' + (edit.areas ? ' del-mode' : (on ? ' on' : ''));
+    b.textContent = (edit.areas ? '✕ ' : '') + a;
+    b.onclick = ()=>{
+      if(edit.areas){
+        if(confirm(`箇所「${a}」をリストから削除しますか？`)){
+          AREAS = AREAS.filter(x=>x!==a); save(LS.areas, AREAS);
+          Object.keys(state.stepStatus).forEach(k=>{             // 引き継ぎ欄から除去
+            const c = norm(state.stepStatus[k]);
+            if(c.areas.includes(a)){ c.areas = c.areas.filter(x=>x!==a); state.stepStatus[k]=c; }
+          });
+          [state.stepAreas, state.nstepAreas].forEach(m=>{       // 本日/翌日の箇所からも除去
+            Object.keys(m).forEach(k=>{
+              m[k] = m[k].filter(x=>x!==a);
+              if(!m[k].length) delete m[k];
+            });
+          });
+        }
+      } else {
+        setA(on ? getA().filter(x=>x!==a) : [...getA(), a]);
+      }
+      redraw(); render();
+    };
+    container.appendChild(b);
+  });
+  const add = document.createElement('div');
+  add.className='chip add'; add.textContent='＋ 箇所を追加';
+  add.onclick = ()=>ask('箇所を追加（例：ベランダ・軒天）', v=>{
+    if(!AREAS.includes(v)){ AREAS.push(v); save(LS.areas, AREAS); }
+    if(!getA().includes(v)) setA([...getA(), v]);   // 追加した箇所はそのまま選択状態に
+    redraw(); render();
+  });
+  container.appendChild(add);
+  const ed = document.createElement('div');
+  ed.className='chip add'; ed.textContent = edit.areas ? '✔ 削除おわり' : '🗑 削除';
+  ed.onclick = ()=>{ edit.areas = !edit.areas; redraw(); };
+  container.appendChild(ed);
+}
+
+/* ---------- 本日/翌日の工程 → 箇所ピッカー ---------- */
+const apick = document.getElementById('apick');
+let apTarget = null;   // { step, map }
+function openAreaPicker(step, map){
+  apTarget = { step, map };
+  document.getElementById('apTitle').textContent = step + ' の箇所';
+  drawApick();
+  apick.showModal();
+}
+function drawApick(){
+  if(!apTarget) return;
+  areaChips(document.getElementById('apAreas'),
+    ()=> apTarget.map[apTarget.step] ?? [],
+    arr=>{ if(arr.length) apTarget.map[apTarget.step] = arr; else delete apTarget.map[apTarget.step]; },
+    drawApick);
+}
+document.getElementById('apClose').onclick = ()=> apick.close();
+
+/* 選択中の工程を行表示し「📍 箇所」ボタンを付ける（項目3・8共通） */
+function stepAreaRows(containerId, set, map){
+  const el = document.getElementById(containerId);
+  el.innerHTML = '';
+  [...set].forEach(stp=>{
+    const row = document.createElement('div'); row.className='mat';
+    const nm  = document.createElement('div'); nm.className='nm';
+    nm.innerHTML = stp + (map[stp]?.length
+      ? ` <small style="color:var(--accent2)">📍${map[stp].join('・')}</small>` : '');
+    const btn = document.createElement('button');
+    btn.className='mini abtn'; btn.textContent='📍 箇所';
+    btn.onclick = ()=> openAreaPicker(stp, map);
+    row.append(nm, btn);
+    el.appendChild(row);
+  });
+}
+
+/* ---------- 全体進捗（工程から自動）・人工の表示 ---------- */
+function drawProgress(){
+  const pct = state.site ? progressPct() : 0;
+  document.getElementById('totalVal').textContent = pct;
+  document.getElementById('pbDone').style.width   = pct + '%';
+  document.getElementById('ninBadge').textContent = `合計 ${ninTotal().toFixed(1)} 人工`;
+
+  const nt = ninToday();
+  document.getElementById('ninToday').textContent = nt.toFixed(1);
+  document.getElementById('ninCalc').textContent  =
+    state.hours ? `${state.crew}名 × ${state.hours}(${HFACTOR[state.hours]})` : '作業時間を選択';
+  document.getElementById('ninPrev').textContent  = state.ninPrev.toFixed(1);
+  document.getElementById('ninTotal').textContent = ninTotal().toFixed(1);
+}
+
+/* ---------- 人数・人工調整 ---------- */
+document.querySelectorAll('.rnd').forEach(b=>{
+  b.onclick=()=>{ state.crew = Math.max(0, state.crew + Number(b.dataset.n)); render(); };
+});
+document.querySelectorAll('[data-nin]').forEach(b=>{
+  b.onclick=()=>{ state.ninPrev = Math.max(0, +(state.ninPrev + Number(b.dataset.nin)).toFixed(1)); render(); };
+});
+
+/* ---------- 音声入力 ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+document.querySelectorAll('.mic').forEach(btn=>{
+  if(!SR){
+    btn.disabled=true; btn.style.opacity=.5; btn.textContent='🎤 音声非対応';
+    btn.insertAdjacentHTML('afterend','<div class="hint">この端末/ブラウザは音声入力に非対応です（Chrome・Edge推奨）。文字入力をご利用ください。</div>');
+    return;
+  }
+  btn.onclick=()=>{
+    const ta = document.getElementById(btn.dataset.t);
+    const rec = new SR();
+    rec.lang='ja-JP'; rec.interimResults=true; rec.continuous=false;
+    let base = ta.value ? ta.value + ' ' : '';
+    btn.classList.add('rec'); btn.textContent='🔴 録音中…';
+    rec.onresult = e=>{
+      let s='';
+      for(let i=0;i<e.results.length;i++) s += e.results[i][0].transcript;
+      ta.value = base + s;
+      state[btn.dataset.t] = ta.value;
+    };
+    rec.onerror = e=>{ toast('音声エラー: '+e.error); };
+    rec.onend = ()=>{ btn.classList.remove('rec'); btn.textContent='🎤 話す'; state[btn.dataset.t]=ta.value; };
+    rec.start();
+  };
+});
+['note','nnote'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', e=> state[id]=e.target.value);
+});
+
+/* ---------- 写真 + EXIF撮影日時 ---------- */
+function exifDate(file){
+  return new Promise(res=>{
+    const fr=new FileReader();
+    fr.onload=()=>{
+      try{
+        const v=new DataView(fr.result);
+        if(v.getUint16(0)!==0xFFD8) return res(null);
+        let off=2;
+        while(off < v.byteLength-1){
+          const marker=v.getUint16(off);
+          if(marker===0xFFE1){
+            const tiff=off+10;
+            if(v.getUint32(off+4)!==0x45786966) return res(null);
+            const le = v.getUint16(tiff)===0x4949;
+            const ifd0 = tiff + v.getUint32(tiff+4, le);
+            const scan = (dirStart)=>{
+              const n=v.getUint16(dirStart, le);
+              for(let i=0;i<n;i++){
+                const e=dirStart+2+i*12, tag=v.getUint16(e, le);
+                if(tag===0x8769) return tiff + v.getUint32(e+8, le);
+                if(tag===0x9003 || tag===0x0132){
+                  let p = tiff + v.getUint32(e+8, le), s='';
+                  for(let k=0;k<19;k++) s += String.fromCharCode(v.getUint8(p+k));
+                  return {str:s};
+                }
+              }
+              return null;
+            };
+            let r = scan(ifd0);
+            if(typeof r === 'number') r = scan(r);
+            if(r && r.str) return res(r.str.replace(/^(\d{4}):(\d{2}):(\d{2})/,'$1/$2/$3'));
+            return res(null);
+          }
+          if((marker & 0xFF00) !== 0xFF00) break;
+          off += 2 + v.getUint16(off+2);
+        }
+        res(null);
+      }catch(e){ res(null) }
+    };
+    fr.readAsArrayBuffer(file.slice(0,131072));
+  });
+}
+document.getElementById('pfile').onchange = async e=>{
+  for(const f of e.target.files){
+    const d = await exifDate(f);
+    state.photos.push({ url:URL.createObjectURL(f), name:f.name, taken:d });
+  }
+  e.target.value=''; render();
+};
+function drawPhotos(){
+  const el=document.getElementById('photos'); el.innerHTML='';
+  state.photos.forEach((p,i)=>{
+    const d=document.createElement('div'); d.className='ph';
+    d.innerHTML = `<img src="${p.url}"><span>${p.taken ? p.taken.slice(5,16) : '日時なし'}</span><b>✕</b>`;
+    d.querySelector('b').onclick=()=>{ state.photos.splice(i,1); render(); };
+    el.appendChild(d);
+  });
+}
+
+/* ---------- 日報生成（ハルシネーション防止：未入力は「記載なし」） ---------- */
+const NA='（記載なし）';
+const val = v => (v && String(v).trim()) ? String(v).trim() : NA;
+const setv = s => s.size ? [...s].join('、') : NA;
+const setvA = (s,m) => s.size
+  ? [...s].map(v => v + (m[v]?.length ? `（${m[v].join('・')}）` : '')).join('、')
+  : NA;
+const matv = o => {
+  const k=Object.keys(o);
+  return k.length ? '\n' + k.map(n=>`　・${n} … ${o[n]} 缶/個`).join('\n') : ' ' + NA;
+};
+
+/* 工程状況を「状況ごと」に整形（箇所があれば併記） */
+function statusBlock(){
+  let out = '';
+  STATUS.forEach(s=>{
+    const list = STEPS.filter(v=>stOf(v)===s.k).map(v=>{
+      const a = norm(state.stepStatus[v]).areas;
+      return v + (a.length ? `（${a.join('・')}）` : '');
+    });
+    if(list.length) out += `${s.i} ${s.n}　：${list.join('、')}\n`;
+  });
+  return out || `（記載なし）\n`;
+}
+
+function build(){
+  const p = state.photos.length
+    ? `${state.photos.length}枚` + (state.photos.some(x=>x.taken)
+        ? `（撮影日時: ${state.photos.filter(x=>x.taken).map(x=>x.taken.slice(0,16)).join(' / ')}）` : '')
+    : NA;
+
+  return `【現場日報】
+現場名　　：${val(state.site)}
+日付　　　：${val(state.date)}
+天候　　　：${val(state.weather)}
+作業時間　：${val(state.hours)}
+作業人数　：${state.crew} 名
+本日の人工：${ninToday().toFixed(1)} 人工${state.hours ? `（${state.crew}名×${state.hours}）` : ''}
+実施工程　：${setvA(state.steps, state.stepAreas)}
+使用材料　：${matv(state.used)}
+写真　　　：${p}
+特記事項　：${val(state.note)}
+
+【この現場の工程状況（引き継ぎ用）】
+全体進捗　：${state.site ? progressPct() : 0} %（工程の状況から自動算出）
+合計人工　：${ninTotal().toFixed(1)} 人工（前回まで ${state.ninPrev.toFixed(1)} ＋ 本日 ${ninToday().toFixed(1)}）
+${statusBlock()}➡️ 次にやる工程：${STEPS.find(v=>stOf(v)!=='done' && stOf(v)!=='hold') || '全工程 完了'}
+
+【翌日／次回】
+予定工程　：${setvA(state.nsteps, state.nstepAreas)}
+必要な塗料・材料：${matv(state.need)}
+備考　　　：${val(state.nnote)}
+
+────────────────
+※本日報は、選択・入力された情報のみで作成しています。
+　未入力の項目は推測で補完せず「（記載なし）」と表示しています。
+　作成: 打ち込みゼロ日報 v1.0`;
+}
+
+document.getElementById('make').onclick=()=>{
+  state.note  = document.getElementById('note').value;
+  state.nnote = document.getElementById('nnote').value;
+  document.getElementById('out').textContent = build();
+  document.getElementById('out').scrollIntoView({behavior:'smooth', block:'center'});
+  if(state.site){                       // 現場ごとの工程状況・累計人工を保存（次回は続きから）
+    statStore[state.site] = {...state.stepStatus};
+    save(LS.stat, statStore);
+    // 累計＝前回まで＋本日。ninPrevは変えずに保存するので、再作成しても二重加算されない。
+    // 次にこの現場を開いた時（＝翌日想定）に、この累計が「前回まで」として復元される。
+    const newNin = ninTotal();
+    ninStore[state.site] = newNin;
+    save(LS.nin, ninStore);
+    toast(`日報作成 / ${state.site}：進捗 ${progressPct()}% ・累計 ${newNin.toFixed(1)}人工を保存`);
+  } else {
+    toast('日報を作成しました（現場未選択のため累計は未保存）');
+  }
+};
+document.getElementById('copy').onclick=async ()=>{
+  const t=document.getElementById('out').textContent;
+  if(!t || t.startsWith('下の')){ toast('先に日報を作成してください'); return; }
+  try{ await navigator.clipboard.writeText(t); toast('コピーしました'); }
+  catch(e){
+    const ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy'); ta.remove(); toast('コピーしました');
+  }
+};
+document.getElementById('reset').onclick=()=>{
+  if(!confirm('入力内容をクリアしますか？')) return;
+  state.site=null; state.weather=null; state.hours=null; state.crew=3;
+  state.steps.clear(); state.nsteps.clear(); state.used={}; state.need={};
+  state.photos=[]; state.stepStatus={}; state.ninPrev=0;
+  state.stepAreas={}; state.nstepAreas={};
+  sitePanelOpen=false; tagFilter=null; document.getElementById('siteSearch').value='';
+  document.getElementById('note').value=''; document.getElementById('nnote').value='';
+  state.note=''; state.nnote='';
+  document.getElementById('out').textContent='下の「日報を作成」を押してください。';
+  render(); toast('クリアしました');
+};
+
+/* ---------- 起動 ---------- */
+state.date = fmtDate(new Date());
+render();
+</script>
+</body>
+</html>
