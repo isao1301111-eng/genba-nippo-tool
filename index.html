@@ -45,6 +45,20 @@
     border:1px solid #3b82f6; border-radius:999px; padding:1px 8px; margin-left:4px; vertical-align:middle}
   .meta{font-size:11px; color:var(--muted); text-align:right; line-height:1.5; white-space:nowrap}
   #sitePanel{border-top:1px dashed var(--line); margin-top:12px; padding-top:10px}
+  .inp{width:100%; padding:11px; border-radius:10px; border:1px solid var(--line);
+    background:var(--card2); color:var(--txt); font-size:15px; font-family:inherit}
+  .inp2{display:flex; gap:8px; align-items:center}
+  .inp2 .inp{flex:1; width:auto}
+  #hdlg{width:560px}
+  .hrow{display:flex; align-items:center; gap:8px; background:var(--card2); border:1px solid var(--line);
+    border-radius:10px; padding:9px 11px; margin-bottom:7px; cursor:pointer}
+  .hrow:active{transform:scale(.99)}
+  .hrow .hd{flex:1; font-size:14px}
+  .hrow .hn{font-size:13px; color:var(--ok); font-weight:700; white-space:nowrap}
+  .ptable{width:100%; border-collapse:collapse; font-size:13px; margin:8px 0}
+  .ptable th,.ptable td{border:1px solid var(--line); padding:7px 9px; text-align:left}
+  .ptable th{background:var(--card2); color:var(--muted); font-weight:600}
+  .ptable td.num{text-align:right; font-weight:700}
   .chip.st-wip    {background:#3b82f6; border-color:#3b82f6; color:#fff; font-weight:700}
   .chip.st-multi  {background:#8b5cf6; border-color:#8b5cf6; color:#fff; font-weight:700}
   .chip.st-partial{background:#eab308; border-color:#eab308; color:#1a1a1a; font-weight:700}
@@ -176,6 +190,9 @@
     </div>
     <div class="pbar"><i id="pbDone" style="background:var(--ok)"></i></div>
     <div class="sum" id="stepSummary">現場を選ぶと表示されます</div>
+    <div class="chips" style="margin-bottom:10px">
+      <div class="chip add" id="histBtn">📖 過去の日報・検索（人工/給料計算）</div>
+    </div>
     <div class="chips" id="stepStatus"></div>
     <div class="hint">工程をタップ →「状況」と「箇所」を選べます（⬜未着手 / 🔵進行中 / 🟣数か所進行中 / 🟡一部完了 / 🟠ほぼ完了 / ✅完了 / ⏸️中断）<br>
       現場ごとに記憶します。<b>次に入る人がこの現場をタップすれば、どの工程がどこまで・どの面が終わっているか一目で分かります。</b></div>
@@ -192,7 +209,11 @@
         <span class="big" id="crew">3</span><span class="unit">名</span>
         <button class="rnd" data-n="1">＋</button>
       </div>
+      <span class="hint" id="crewHint" style="margin-top:0"></span>
     </div>
+    <div class="lbl2" style="margin-top:14px">作業者（基本は終日。名前をタップで時間変更）</div>
+    <div class="chips" id="workerSel"></div>
+    <div class="chips" id="workerRoster" style="margin-top:8px"></div>
   </div>
 
   <div class="card">
@@ -265,6 +286,12 @@
   </div>
 
   <div class="card">
+    <h2><span class="no" style="background:#3b82f6">✍</span>作成者</h2>
+    <div class="chips" id="creatorSel"></div>
+    <div class="hint" id="creatorHint">日報を作成した本人を選びます。日報・履歴に作成者・作成日時・IPが記録されます（証跡）。</div>
+  </div>
+
+  <div class="card">
     <h2>📄 日報プレビュー</h2>
     <div class="out" id="out">下の「日報を作成」を押してください。</div>
     <div class="guard">
@@ -273,7 +300,25 @@
     </div>
   </div>
 
-  <div class="foot">Isao Matsumoto / 現場27年 × AI — 打ち込みゼロ日報 v1.0</div>
+  <div class="card">
+    <h2><span class="no" style="background:#6b7280">⚙</span>通知・連携設定（任意）</h2>
+    <div class="lbl2">Google Apps Script ウェブアプリURL</div>
+    <input class="inp" id="cfgUrl" placeholder="https://script.google.com/macros/s/.../exec">
+    <div class="lbl2" style="margin-top:8px">通知先メール（代表者・経理／カンマ区切り）</div>
+    <input class="inp" id="cfgEmails" placeholder="daihyo@example.com, keiri@example.com">
+    <label class="row" style="margin-top:12px; gap:8px; cursor:pointer">
+      <input type="checkbox" id="cfgEnabled" style="width:20px; height:20px">
+      <span>日報の作成・更新時に自動で通知＋記録する</span>
+    </label>
+    <div class="row" style="margin-top:12px; gap:8px">
+      <button class="mini abtn" id="cfgSave">💾 保存</button>
+      <button class="mini abtn" id="cfgTest">✉ テスト送信</button>
+      <span class="hint" id="cfgStatus" style="margin-top:0"></span>
+    </div>
+    <div class="hint">日報の作成・更新時に、内容が①代表者・経理へメール通知 ②Googleスプレッドシートへ自動記録されます。データはあなた自身のGoogleアカウント内に送られ、外部サーバーは使いません。設定はセットアップガイド参照。</div>
+  </div>
+
+  <div class="foot">Isao Matsumoto / 現場27年 × AI — 打ち込みゼロ日報 v1.1</div>
 </div>
 
 <div class="bar">
@@ -301,6 +346,46 @@
   <div class="chips" id="tdTags"></div>
   <div class="row" style="margin-top:16px">
     <button class="p" id="tdClose" style="width:100%; padding:13px">決定</button>
+  </div>
+</dialog>
+
+<dialog id="hdlg">
+  <h3>📖 過去の日報・検索</h3>
+  <div class="lbl">期間</div>
+  <div class="inp2">
+    <input type="date" class="inp" id="hFrom">
+    <span class="unit">〜</span>
+    <input type="date" class="inp" id="hTo">
+  </div>
+  <div class="lbl">現場</div>
+  <select class="inp" id="hSite"><option value="">すべての現場</option></select>
+  <div class="lbl">作業者</div>
+  <select class="inp" id="hWorker"><option value="">すべての作業者</option></select>
+
+  <div class="sum" id="hSummary" style="margin-top:12px"></div>
+  <div id="hWorkerTable"></div>
+  <div class="lbl">日報一覧（タップで全文表示）</div>
+  <div id="hList" style="max-height:280px; overflow-y:auto"></div>
+  <div class="row" style="margin-top:12px">
+    <button class="p" id="hClose" style="width:100%; padding:13px">閉じる</button>
+  </div>
+</dialog>
+
+<dialog id="rvw">
+  <h3 id="rvwTitle">日報</h3>
+  <div class="out" id="rvwText" style="max-height:340px"></div>
+  <div class="row" style="margin-top:12px">
+    <button id="rvwCopy">📋 コピー</button>
+    <button class="p" id="rvwClose">閉じる</button>
+  </div>
+</dialog>
+
+<dialog id="wdlg">
+  <h3 id="wdTitle">作業者</h3>
+  <div class="lbl">本日の作業時間</div>
+  <div id="wdOpts"></div>
+  <div class="row" style="margin-top:14px">
+    <button class="p" id="wdClose" style="width:100%; padding:13px">閉じる</button>
   </div>
 </dialog>
 
@@ -332,7 +417,12 @@ const LS = {
   areas:'nippo_areas_v1',
   used:'nippo_siteused_v1',
   tags:'nippo_sitetags_v1',
-  taglist:'nippo_taglist_v1'
+  taglist:'nippo_taglist_v1',
+  workers:'nippo_workers_v1',
+  reports:'nippo_reports_v1',
+  creator:'nippo_creator_v1',
+  creators:'nippo_creators_v1',
+  notify:'nippo_notify_v1'
 };
 const load = (k,d)=>{ try{ return JSON.parse(localStorage.getItem(k)) ?? d }catch(e){ return d } };
 const save = (k,v)=> localStorage.setItem(k, JSON.stringify(v));
@@ -354,15 +444,44 @@ const state = {
   site:null, date:null, weather:null, hours:null, crew:3,
   steps:new Set(), note:'', nsteps:new Set(), nnote:'',
   used:{}, need:{}, photos:[], stepStatus:{}, ninPrev:0,
-  stepAreas:{}, nstepAreas:{}      // 本日/翌日の工程ごとの箇所 {工程:[箇所...]}
+  stepAreas:{}, nstepAreas:{},     // 本日/翌日の工程ごとの箇所 {工程:[箇所...]}
+  workers:{},                      // 本日の作業者 {名前:'full'|'am'|'pm'}
+  creator: load(LS.creator, null)  // 日報作成者
 };
+// 作成者リスト（職長・代表者のみ）。追加は名簿と共用、削除は作成者リストのみ
+let CREATORS = load(LS.creators, null);
+if(CREATORS === null){                        // 初回：既存の作成者があれば引き継ぐ
+  CREATORS = state.creator ? [state.creator] : [];
+  save(LS.creators, CREATORS);
+}
+let WORKERS = load(LS.workers, []);   // 作業者名簿（保存され次回も使える）
+let rosterOpen = false;               // 名簿の開閉
+let reports = load(LS.reports, []);   // 日報履歴 [{d,dl,site,workers,crew,nin,pct,text,creator,ip,createdAt,createdBy,updatedAt,updatedBy}]
+let myIP = null;                      // 端末のIP（給料計算の証跡・参考情報）
+(function fetchIP(){
+  try{
+    fetch('https://api.ipify.org?format=json').then(r=>r.json())
+      .then(j=>{ myIP = j.ip; })
+      .catch(()=>{ myIP = null; });
+  }catch(e){ myIP = null; }
+})();
 
 const WEATHER = ['☀️ 晴れ','⛅ 曇り','🌧️ 雨','🌦️ 一時雨','💨 強風','❄️ 雪'];
 const HOURS   = ['終日','午前のみ','午後のみ','中止'];
 const HFACTOR = { '終日':1, '午前のみ':0.5, '午後のみ':0.5, '中止':0 };
 
-/* 本日の人工＝人数×作業時間係数 / 合計＝前回まで＋本日 */
-const ninToday = () => state.hours ? +(state.crew * HFACTOR[state.hours]).toFixed(1) : 0;
+/* 本日の人工：作業者が選ばれていれば個人ごとの時間で合算、いなければ人数×現場の作業時間 */
+const WFACTOR = { full:1, am:0.5, pm:0.5 };
+const WLABEL  = { full:'終日', am:'午前のみ', pm:'午後のみ' };
+/* その日の作業時間（項目2）を作業者の基準時間に変換。未選択・中止は終日扱い */
+const baseKey = () => state.hours==='午前のみ' ? 'am' : state.hours==='午後のみ' ? 'pm' : 'full';
+/* 'day'＝その日の時間に自動追従。個別指定があればそれを優先 */
+const effKey  = k => (k==='day' ? baseKey() : k);
+const ninToday = () => {
+  const ws = Object.values(state.workers);
+  if(ws.length) return +(ws.reduce((a,k)=> a + WFACTOR[effKey(k)], 0)).toFixed(1);
+  return state.hours ? +(state.crew * HFACTOR[state.hours]).toFixed(1) : 0;
+};
 const ninTotal = () => +(state.ninPrev + ninToday()).toFixed(1);
 
 /* 全体進捗％＝工程の状況から自動算出（各工程を均等配分し、状況の達成率で加重） */
@@ -372,7 +491,7 @@ function progressPct(){
   return Math.round(sum / STEPS.length * 100);
 }
 let STEPS = load(LS.steps, ['足場設置','高圧洗浄','養生','下地補修','コーキング','下塗り','中塗り','上塗り','付帯部塗装','手直し','片付け','足場解体']);
-const edit = { steps:false, areas:false };   // 削除モードのON/OFF
+const edit = { steps:false, areas:false, workers:false, creator:false };   // 削除モードのON/OFF
 
 /* 工程の状況（大現場では1工程が完全に終わる前に次へ進むため多段階） */
 const STATUS = [
@@ -570,6 +689,219 @@ function drawTdlg(){
 }
 document.getElementById('tdClose').onclick=()=>{ editTagMode=false; tdlg.close(); if(sitePanelOpen) renderSitePanel(); };
 
+/* ---------- 作業者（名簿は隠し欄・個人ごとに終日/午前/午後） ---------- */
+function syncCrew(){
+  const n = Object.keys(state.workers).length;
+  if(n > 0) state.crew = n;                 // 作業者選択中は人数を自動同期
+}
+function renderWorkers(){
+  // 選択中の作業者（名前チップのみ・終日以外だけ時間を併記）
+  const selEl = document.getElementById('workerSel');
+  selEl.innerHTML = '';
+  Object.keys(state.workers).forEach(n=>{
+    const eff = effKey(state.workers[n]);
+    const same = eff === baseKey();          // その日の作業時間と同じ人は名前だけ
+    const b = document.createElement('div');
+    b.className = 'chip ' + (same ? 'on' : 'st-partial');
+    b.textContent = n + (same ? '' : `（${{full:'終日',am:'午前',pm:'午後'}[eff]}）`);
+    b.onclick = ()=> openWorkerDlg(n);
+    selEl.appendChild(b);
+  });
+
+  // 名簿（普段は隠れている・タップで出し入れ）
+  const el = document.getElementById('workerRoster');
+  el.innerHTML = '';
+  const t = document.createElement('div');
+  t.className='chip add';
+  t.textContent = rosterOpen ? '▲ 名簿を閉じる' : `👷 名簿から選ぶ（全${WORKERS.length}人）`;
+  t.onclick = ()=>{ rosterOpen = !rosterOpen; render(); };
+  el.appendChild(t);
+  if(rosterOpen){
+    WORKERS.forEach(n=>{
+      const on = !!state.workers[n];
+      const b = document.createElement('div');
+      b.className = 'chip' + (edit.workers ? ' del-mode' : (on ? ' on' : ''));
+      b.textContent = (edit.workers ? '✕ ' : '') + n;
+      b.onclick = ()=>{
+        if(edit.workers){
+          if(confirm(`作業者「${n}」を名簿から削除しますか？`)){
+            WORKERS = WORKERS.filter(x=>x!==n); save(LS.workers, WORKERS);
+            delete state.workers[n]; syncCrew();
+          }
+        } else {
+          if(on) delete state.workers[n];
+          else state.workers[n] = 'day';     // 初期値＝その日の作業時間に追従
+          syncCrew();
+        }
+        render();
+      };
+      el.appendChild(b);
+    });
+    const ed = document.createElement('div');
+    ed.className='chip add';
+    ed.textContent = edit.workers ? '✔ 削除おわり' : '🗑 削除';
+    ed.onclick = ()=>{ edit.workers = !edit.workers; render(); };
+    el.appendChild(ed);
+  }
+  const a = document.createElement('div');
+  a.className='chip add'; a.textContent='＋ 作業者を追加';
+  a.onclick = ()=>ask('作業者の名前を追加', v=>{
+    if(!WORKERS.includes(v)){ WORKERS.push(v); save(LS.workers, WORKERS); }
+    if(!state.workers[v]) state.workers[v] = 'day';    // 追加したらそのまま本日に選択（その日の時間に追従）
+    syncCrew(); render();
+  });
+  el.appendChild(a);
+
+  document.getElementById('crewHint').textContent =
+    Object.keys(state.workers).length ? '※作業者から自動' : '';
+}
+
+/* ---------- 作成者（給料計算の記録用・名簿から選択） ---------- */
+function renderCreator(){
+  const el = document.getElementById('creatorSel');
+  el.innerHTML = '';
+  CREATORS.forEach(n=>{
+    const b = document.createElement('div');
+    b.className = 'chip' + (edit.creator ? ' del-mode' : (state.creator===n ? ' on' : ''));
+    b.textContent = (edit.creator ? '✕ ' : '') + n;
+    b.onclick = ()=>{
+      if(edit.creator){
+        if(confirm(`「${n}」を作成者リストから外しますか？（作業者名簿には残ります）`)){
+          CREATORS = CREATORS.filter(x=>x!==n); save(LS.creators, CREATORS);
+          if(state.creator===n){ state.creator=null; save(LS.creator, null); }
+        }
+      } else {
+        state.creator = (state.creator===n ? null : n);
+        save(LS.creator, state.creator);
+      }
+      render();
+    };
+    el.appendChild(b);
+  });
+  const a = document.createElement('div');
+  a.className='chip add'; a.textContent='＋ 作成者を追加';
+  a.onclick = ()=>ask('作成者の名前を追加', v=>{
+    if(!WORKERS.includes(v)){ WORKERS.push(v); save(LS.workers, WORKERS); }   // 追加は名簿と共用
+    if(!CREATORS.includes(v)){ CREATORS.push(v); save(LS.creators, CREATORS); }
+    state.creator = v; save(LS.creator, state.creator);
+    render();
+  });
+  el.appendChild(a);
+  const e = document.createElement('div');
+  e.className='chip add'; e.textContent = edit.creator ? '✔ 削除おわり' : '🗑 削除';
+  e.onclick = ()=>{ edit.creator = !edit.creator; render(); };
+  el.appendChild(e);
+  document.getElementById('creatorHint').innerHTML = state.creator
+    ? `作成者：<b>${state.creator}</b>　／　IP：${myIP || '取得中…'}（記録されます）`
+    : '⚠️ 作成者を選んでください（日報の証跡になります）。';
+}
+
+/* ---------- 作業者の詳細ダイアログ（名前タップで開く） ---------- */
+const wdlg = document.getElementById('wdlg');
+let wdName = null;
+function openWorkerDlg(n){
+  wdName = n;
+  document.getElementById('wdTitle').textContent = n;
+  drawWdlg();
+  wdlg.showModal();
+}
+function drawWdlg(){
+  const c = document.getElementById('wdOpts');
+  c.innerHTML = '';
+  [['full','☀️','終日'],['am','🌅','午前のみ'],['pm','🌆','午後のみ']].forEach(([k,ic,label])=>{
+    const b = document.createElement('button');
+    b.className = 'sbtn' + (effKey(state.workers[wdName])===k ? ' sel' : '');
+    b.innerHTML = `<span class="ic">${ic}</span><span>${label}${k===baseKey() ? '（この日の時間）' : ''}</span>`;
+    b.onclick = ()=>{
+      state.workers[wdName] = (k===baseKey() ? 'day' : k);   // 日と同じなら追従に戻す
+      wdlg.close(); render();
+    };
+    c.appendChild(b);
+  });
+  const rm = document.createElement('button');
+  rm.className = 'sbtn';
+  rm.innerHTML = '<span class="ic">🚫</span><span>本日のメンバーから外す</span>';
+  rm.onclick = ()=>{ delete state.workers[wdName]; syncCrew(); wdlg.close(); render(); };
+  c.appendChild(rm);
+}
+document.getElementById('wdClose').onclick = ()=> wdlg.close();
+
+/* ---------- 過去の日報・検索（人工/給料計算） ---------- */
+const hdlg = document.getElementById('hdlg');
+document.getElementById('histBtn').onclick = ()=>{
+  const now = new Date(), p = n=>String(n).padStart(2,'0');
+  document.getElementById('hFrom').value = `${now.getFullYear()}-${p(now.getMonth()+1)}-01`;   // 今月1日〜今日
+  document.getElementById('hTo').value   = `${now.getFullYear()}-${p(now.getMonth()+1)}-${p(now.getDate())}`;
+  const sSel = document.getElementById('hSite'), wSel = document.getElementById('hWorker');
+  const siteSet = new Set(sites); reports.forEach(r=>siteSet.add(r.site));
+  sSel.innerHTML = '<option value="">すべての現場</option>' + [...siteSet].map(s=>`<option>${s}</option>`).join('');
+  const wSet = new Set(WORKERS); reports.forEach(r=>Object.keys(r.workers||{}).forEach(n=>wSet.add(n)));
+  wSel.innerHTML = '<option value="">すべての作業者</option>' + [...wSet].map(s=>`<option>${s}</option>`).join('');
+  renderHistory();
+  hdlg.showModal();
+};
+['hFrom','hTo','hSite','hWorker'].forEach(id=>
+  document.getElementById(id).addEventListener('change', renderHistory));
+document.getElementById('hClose').onclick = ()=> hdlg.close();
+
+function renderHistory(){
+  const from = (document.getElementById('hFrom').value||'').replace(/-/g,'/');
+  const to   = (document.getElementById('hTo').value||'').replace(/-/g,'/');
+  const fs = document.getElementById('hSite').value;
+  const fw = document.getElementById('hWorker').value;
+  let list = [...reports];
+  if(from) list = list.filter(r=>r.d>=from);
+  if(to)   list = list.filter(r=>r.d<=to);
+  if(fs)   list = list.filter(r=>r.site===fs);
+  if(fw)   list = list.filter(r=>r.workers && r.workers[fw]);
+  list.sort((a,b)=> a.d<b.d ? 1 : -1);
+
+  // 合計人工（作業者指定時はその人の分だけ）
+  const total = fw
+    ? list.reduce((a,r)=> a + WFACTOR[r.workers[fw]], 0)
+    : list.reduce((a,r)=> a + (r.nin||0), 0);
+  document.getElementById('hSummary').innerHTML =
+    `該当 <b>${list.length}</b> 件　合計 <b>${(+total).toFixed(1)}</b> 人工${fw ? `（${fw}）` : ''}`;
+
+  // 作業者ごとの集計（給料計算用）
+  const agg = {};
+  list.forEach(r=>Object.keys(r.workers||{}).forEach(n=>{
+    if(fw && n!==fw) return;
+    agg[n] = agg[n] || { days:0, nin:0 };
+    agg[n].days++; agg[n].nin += WFACTOR[r.workers[n]];
+  }));
+  const names = Object.keys(agg);
+  document.getElementById('hWorkerTable').innerHTML = names.length
+    ? '<table class="ptable"><tr><th>作業者</th><th>出勤日数</th><th>人工合計</th></tr>'
+      + names.map(n=>`<tr><td>${n}</td><td class="num">${agg[n].days} 日</td><td class="num">${agg[n].nin.toFixed(1)} 人工</td></tr>`).join('')
+      + '</table>'
+    : '';
+
+  // 日報一覧
+  const el = document.getElementById('hList'); el.innerHTML='';
+  list.forEach(r=>{
+    const row = document.createElement('div'); row.className='hrow';
+    const d = document.createElement('div'); d.className='hd';
+    d.innerHTML = `${r.d.slice(5)}　${r.site}` +
+      (r.creator ? ` <span class="unit">✍${r.creator}${r.updatedBy ? '（更新有）' : ''}</span>` : '');
+    const n = document.createElement('div'); n.className='hn';
+    n.textContent = `${(r.nin||0).toFixed(1)}人工`;
+    row.append(d,n);
+    row.onclick = ()=>{
+      document.getElementById('rvwTitle').textContent = `${r.dl||r.d}　${r.site}`;
+      document.getElementById('rvwText').textContent = r.text || '（本文なし）';
+      document.getElementById('rvw').showModal();
+    };
+    el.appendChild(row);
+  });
+  if(!list.length) el.innerHTML = '<div class="hint">該当する日報がありません</div>';
+}
+document.getElementById('rvwClose').onclick = ()=> document.getElementById('rvw').close();
+document.getElementById('rvwCopy').onclick = async ()=>{
+  try{ await navigator.clipboard.writeText(document.getElementById('rvwText').textContent); toast('コピーしました'); }
+  catch(e){ toast('コピーできませんでした'); }
+};
+
 /* ---------- 日付 ---------- */
 function dateList(){
   const out=[];
@@ -622,6 +954,8 @@ function render(){
   chips('dates', dateList(), v=>state.date===v, v=>state.date=v);
   chips('weather', WEATHER, v=>state.weather===v, v=>state.weather=(state.weather===v?null:v));
   chips('hours', HOURS, v=>state.hours===v, v=>state.hours=(state.hours===v?null:v));
+  renderWorkers();
+  renderCreator();
   stepChips('steps', v=>state.steps.has(v), v=>{
     if(state.steps.has(v)){ state.steps.delete(v); delete state.stepAreas[v]; }
     else {
@@ -833,15 +1167,20 @@ function drawProgress(){
 
   const nt = ninToday();
   document.getElementById('ninToday').textContent = nt.toFixed(1);
-  document.getElementById('ninCalc').textContent  =
-    state.hours ? `${state.crew}名 × ${state.hours}(${HFACTOR[state.hours]})` : '作業時間を選択';
+  const wn = Object.values(state.workers).map(effKey);
+  document.getElementById('ninCalc').textContent = wn.length
+    ? `${wn.length}名（終日${wn.filter(k=>k==='full').length}・半日${wn.filter(k=>k!=='full').length}）`
+    : (state.hours ? `${state.crew}名 × ${state.hours}(${HFACTOR[state.hours]})` : '作業時間か作業者を選択');
   document.getElementById('ninPrev').textContent  = state.ninPrev.toFixed(1);
   document.getElementById('ninTotal').textContent = ninTotal().toFixed(1);
 }
 
 /* ---------- 人数・人工調整 ---------- */
 document.querySelectorAll('.rnd').forEach(b=>{
-  b.onclick=()=>{ state.crew = Math.max(0, state.crew + Number(b.dataset.n)); render(); };
+  b.onclick=()=>{
+    if(Object.keys(state.workers).length){ toast('作業者選択中は人数は自動計算です'); return; }
+    state.crew = Math.max(0, state.crew + Number(b.dataset.n)); render();
+  };
 });
 document.querySelectorAll('[data-nin]').forEach(b=>{
   b.onclick=()=>{ state.ninPrev = Math.max(0, +(state.ninPrev + Number(b.dataset.nin)).toFixed(1)); render(); };
@@ -961,7 +1300,7 @@ function statusBlock(){
   return out || `（記載なし）\n`;
 }
 
-function build(){
+function build(acct){
   const p = state.photos.length
     ? `${state.photos.length}枚` + (state.photos.some(x=>x.taken)
         ? `（撮影日時: ${state.photos.filter(x=>x.taken).map(x=>x.taken.slice(0,16)).join(' / ')}）` : '')
@@ -973,7 +1312,15 @@ function build(){
 天候　　　：${val(state.weather)}
 作業時間　：${val(state.hours)}
 作業人数　：${state.crew} 名
-本日の人工：${ninToday().toFixed(1)} 人工${state.hours ? `（${state.crew}名×${state.hours}）` : ''}
+作業者　　：${Object.keys(state.workers).length
+  ? Object.keys(state.workers).map(n=>{
+      const eff = effKey(state.workers[n]);
+      return n + (eff===baseKey() ? '' : `（${WLABEL[eff]}）`);   // 日の時間と違う人だけ併記
+    }).join('、')
+  : NA}
+本日の人工：${ninToday().toFixed(1)} 人工${Object.keys(state.workers).length
+  ? '（作業者の個人時間から算出）'
+  : (state.hours ? `（${state.crew}名×${state.hours}）` : '')}
 実施工程　：${setvA(state.steps, state.stepAreas)}
 使用材料　：${matv(state.used)}
 写真　　　：${p}
@@ -988,18 +1335,53 @@ ${statusBlock()}➡️ 次にやる工程：${STEPS.find(v=>stOf(v)!=='done' && 
 予定工程　：${setvA(state.nsteps, state.nstepAreas)}
 必要な塗料・材料：${matv(state.need)}
 備考　　　：${val(state.nnote)}
-
+${acct || ''}
 ────────────────
 ※本日報は、選択・入力された情報のみで作成しています。
 　未入力の項目は推測で補完せず「（記載なし）」と表示しています。
-　作成: 打ち込みゼロ日報 v1.0`;
+　作成: 打ち込みゼロ日報 v1.1`;
 }
 
+function nowStamp(){
+  const d=new Date(), p=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
 document.getElementById('make').onclick=()=>{
   state.note  = document.getElementById('note').value;
   state.nnote = document.getElementById('nnote').value;
-  document.getElementById('out').textContent = build();
+
+  // 証跡：作成者・作成日時・更新履歴・IP（同じ現場×日付の既存＝更新扱い）
+  const dISO = (state.date || fmtDate(new Date())).slice(0,10);
+  const siteName = state.site || '（現場未指定）';
+  const stamp = nowStamp();
+  const creator = state.creator || '（未選択）';
+  const prev = reports.find(r => r.d===dISO && r.site===siteName);
+  const createdAt = prev ? (prev.createdAt || stamp) : stamp;
+  const createdBy = prev ? (prev.createdBy || creator) : creator;
+  const isUpdate  = !!prev;
+
+  let acct = `\n【作成者・記録】\n作成者　　：${createdBy}\n作成日時　：${createdAt}`;
+  if(isUpdate) acct += `\n最終更新者：${creator}\n最終更新　：${stamp}`;
+  acct += `\nIPアドレス：${myIP || '取得できず'}`;
+
+  const text = build(acct);
+  document.getElementById('out').textContent = text;
   document.getElementById('out').scrollIntoView({behavior:'smooth', block:'center'});
+
+  // 履歴に保存（同じ現場×同じ日付は上書き＝人工の二重計上を防止）
+  const wEff = {};
+  Object.keys(state.workers).forEach(n=> wEff[n] = effKey(state.workers[n]));
+  const rec = { d:dISO, dl:state.date, site: siteName,
+                workers:wEff, crew:state.crew, nin:ninToday(),
+                pct: state.site ? progressPct() : 0, text,
+                creator, ip: myIP || null,
+                createdAt, createdBy,
+                updatedAt: isUpdate ? stamp : null,
+                updatedBy: isUpdate ? creator : null };
+  reports = reports.filter(r => !(r.d===dISO && r.site===siteName));
+  reports.push(rec);
+  save(LS.reports, reports);
+  sendNotify(rec, isUpdate);   // 通知ON時：代表者・経理へメール＋スプレッドシート記録
   if(state.site){                       // 現場ごとの工程状況・累計人工を保存（次回は続きから）
     statStore[state.site] = {...state.stepStatus};
     save(LS.stat, statStore);
@@ -1027,17 +1409,69 @@ document.getElementById('reset').onclick=()=>{
   state.site=null; state.weather=null; state.hours=null; state.crew=3;
   state.steps.clear(); state.nsteps.clear(); state.used={}; state.need={};
   state.photos=[]; state.stepStatus={}; state.ninPrev=0;
-  state.stepAreas={}; state.nstepAreas={};
-  sitePanelOpen=false; tagFilter=null; document.getElementById('siteSearch').value='';
+  state.stepAreas={}; state.nstepAreas={}; state.workers={};
+  rosterOpen=false; sitePanelOpen=false; tagFilter=null; document.getElementById('siteSearch').value='';
   document.getElementById('note').value=''; document.getElementById('nnote').value='';
   state.note=''; state.nnote='';
   document.getElementById('out').textContent='下の「日報を作成」を押してください。';
   render(); toast('クリアしました');
 };
 
+/* ---------- 通知・連携（Google Apps Script） ---------- */
+const notifyCfg = () => load(LS.notify, { url:'', emails:'', enabled:false });
+function sendNotify(rec, isUpdate){
+  const cfg = notifyCfg();
+  if(!cfg.enabled || !cfg.url) return;
+  postGAS(cfg.url, {
+    type: isUpdate ? 'update' : 'create',
+    date: rec.dl || rec.d, site: rec.site,
+    creator: rec.creator, createdAt: rec.createdAt, createdBy: rec.createdBy,
+    updatedAt: rec.updatedAt, updatedBy: rec.updatedBy,
+    ip: rec.ip, nin: rec.nin, pct: rec.pct,
+    workers: rec.workers, text: rec.text, recipients: cfg.emails
+  }, isUpdate ? '更新を通知しました' : '作成を通知しました');
+}
+function postGAS(url, payload, okMsg){
+  // GASウェブアプリはCORS応答を返さないため no-cors で送信（本文はGAS側で受信）
+  fetch(url, { method:'POST', mode:'no-cors',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify(payload) })
+    .then(()=> toast(okMsg))
+    .catch(()=> toast('通知の送信に失敗しました（URL・ネットを確認）'));
+}
+function initNotifyUI(){
+  const cfg = notifyCfg();
+  document.getElementById('cfgUrl').value = cfg.url;
+  document.getElementById('cfgEmails').value = cfg.emails;
+  document.getElementById('cfgEnabled').checked = !!cfg.enabled;
+  const status = document.getElementById('cfgStatus');
+  document.getElementById('cfgSave').onclick = ()=>{
+    const c = {
+      url: document.getElementById('cfgUrl').value.trim(),
+      emails: document.getElementById('cfgEmails').value.trim(),
+      enabled: document.getElementById('cfgEnabled').checked
+    };
+    if(c.enabled && !c.url){ status.textContent='⚠️ URLを入力してください'; return; }
+    save(LS.notify, c);
+    status.textContent = '✅ 保存しました' + (c.enabled ? '（自動通知ON）' : '（自動通知OFF）');
+  };
+  document.getElementById('cfgTest').onclick = ()=>{
+    const url = document.getElementById('cfgUrl').value.trim();
+    if(!url){ status.textContent='⚠️ 先にURLを入力してください'; return; }
+    status.textContent = '送信中…';
+    postGAS(url, {
+      type:'test', date: fmtDate(new Date()), site:'テスト現場',
+      creator: state.creator || 'テスト', text:'これは通知テストです。届いていれば設定成功です。',
+      recipients: document.getElementById('cfgEmails').value.trim()
+    }, 'テスト送信しました（メールとシートを確認）');
+    setTimeout(()=>{ status.textContent='✉ テスト送信済み。メール受信とシート追記を確認してください。'; }, 300);
+  };
+}
+
 /* ---------- 起動 ---------- */
 state.date = fmtDate(new Date());
 render();
+initNotifyUI();
 </script>
 </body>
 </html>
