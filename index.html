@@ -1392,7 +1392,6 @@ document.getElementById('make').onclick=()=>{
   reports.push(rec);
   save(LS.reports, reports);
   sendNotify(rec, isUpdate);   // 通知ON時：代表者・経理へメール＋スプレッドシート記録
-  pushState();                 // 引き継ぎ・現場一覧をクラウドへ（全端末で共有）
   if(state.site){                       // 現場ごとの工程状況・累計人工を保存（次回は続きから）
     statStore[state.site] = {...state.stepStatus};
     save(LS.stat, statStore);
@@ -1407,6 +1406,7 @@ document.getElementById('make').onclick=()=>{
   } else {
     toast('日報を作成しました（現場未選択のため累計は未保存）');
   }
+  pushState();   // ★保存が全部終わった後にクラウドへ（引き継ぎ状況・siteMetaを含めて送る）
 };
 document.getElementById('copy').onclick=async ()=>{
   const t=document.getElementById('out').textContent;
@@ -1510,7 +1510,10 @@ function localStateBlob(){
 function mergeRemoteIntoLocal(r){
   if(!r || typeof r !== 'object') return 0;
   let changed = 0;
-  (r.sites||[]).forEach(s=>{ if(!sites.includes(s)){ sites.push(s); changed++; } });
+  (r.sites||[]).forEach(s=>{
+    if(!sites.includes(s)){ sites.push(s); changed++; }
+    if(!siteUsed[s]) siteUsed[s] = (r.siteMeta && r.siteMeta[s] && r.siteMeta[s].at) || 1;  // 同期現場も直近に出す
+  });
   (r.workers||[]).forEach(s=>{ if(!WORKERS.includes(s)){ WORKERS.push(s); changed++; } });
   (r.creators||[]).forEach(s=>{ if(!CREATORS.includes(s)){ CREATORS.push(s); changed++; } });
   Object.keys(r.siteMeta||{}).forEach(site=>{
@@ -1524,7 +1527,7 @@ function mergeRemoteIntoLocal(r){
   Object.keys(r.siteTags||{}).forEach(site=>{ if(!siteTags[site]){ siteTags[site]=r.siteTags[site]; changed++; } });
   save(LS.sites,sites); save(LS.stat,statStore); save(LS.nin,ninStore);
   save(LS.tags,siteTags); save(LS.workers,WORKERS); save(LS.creators,CREATORS);
-  save(LS.sitemeta,siteMeta);
+  save(LS.sitemeta,siteMeta); save(LS.used,siteUsed);
   if(state.site){                                  // 選択中の現場を最新に反映
     state.stepStatus = {...(statStore[state.site] || {})};
     state.ninPrev = ninStore[state.site] ?? 0;
