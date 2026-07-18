@@ -315,12 +315,13 @@
         <input type="checkbox" id="cfgEnabled" style="width:20px; height:20px">
         <span>日報の作成・更新時に自動で通知＋記録する</span>
       </label>
-      <div class="row" style="margin-top:12px; gap:8px">
+      <div class="row" style="margin-top:12px; gap:8px; flex-wrap:wrap">
         <button class="mini abtn" id="cfgSave">💾 保存</button>
         <button class="mini abtn" id="cfgTest">✉ テスト送信</button>
+        <button class="mini abtn" id="cfgShare">🔗 設定リンクをコピー</button>
         <span class="hint" id="cfgStatus" style="margin-top:0"></span>
       </div>
-      <div class="hint">日報の作成・更新時に、内容が①代表者・経理へメール通知 ②Googleスプレッドシートへ自動記録されます。データはあなた自身のGoogleアカウント内に送られ、外部サーバーは使いません。設定はセットアップガイド参照。</div>
+      <div class="hint">日報の作成・更新時に、内容が①代表者・経理へメール通知 ②Googleスプレッドシートへ自動記録されます。データはあなた自身のGoogleアカウント内に送られ、外部サーバーは使いません。<br><b>🔗 設定リンク</b>を職人さんに送れば、その端末は設定不要で使えます（リンクは社内だけで共有してください）。</div>
     </div>
   </div>
 
@@ -1478,6 +1479,16 @@ function initNotifyUI(){
     save(LS.notify, c);
     status.textContent = '✅ 保存しました' + (c.enabled ? '（自動通知ON）' : '（自動通知OFF）');
   };
+  document.getElementById('cfgShare').onclick = ()=>{
+    const url = document.getElementById('cfgUrl').value.trim();
+    if(!url){ status.textContent='⚠️ 先にURLを入力してください'; return; }
+    const mail = document.getElementById('cfgEmails').value.trim();
+    const link = location.origin + location.pathname
+      + '?gas=' + encodeURIComponent(url) + (mail ? '&mail=' + encodeURIComponent(mail) : '');
+    navigator.clipboard.writeText(link)
+      .then(()=>{ status.textContent = '🔗 コピー完了。職人さんに送れば設定不要で使えます'; })
+      .catch(()=>{ status.textContent = link; });
+  };
   document.getElementById('cfgTest').onclick = ()=>{
     const url = document.getElementById('cfgUrl').value.trim();
     if(!url){ status.textContent='⚠️ 先にURLを入力してください'; return; }
@@ -1556,8 +1567,19 @@ async function cloudSync(push, quiet){
   }
 }
 
+/* 設定リンク（?gas=...&mail=...）で開かれたら自動で連携設定を適用（新端末の設定を不要に） */
+function applySetupLink(){
+  var p = new URLSearchParams(location.search);
+  var gas = p.get('gas');
+  if(!gas) return;
+  var cur = notifyCfg();
+  save(LS.notify, { url: gas, emails: p.get('mail') || cur.emails || '', enabled: true });
+  try{ history.replaceState(null, '', location.pathname); }catch(e){}   // URLからGASを消す
+}
+
 /* ---------- 起動 ---------- */
 state.date = fmtDate(new Date());
+applySetupLink();
 render();
 initNotifyUI();
 if(notifyCfg().url) cloudSync(false, true);   // 起動時：クラウドから読み込み（無音・他端末の入力を反映）
