@@ -301,21 +301,26 @@
   </div>
 
   <div class="card">
-    <h2><span class="no" style="background:#6b7280">⚙</span>通知・連携設定（任意）</h2>
-    <div class="lbl2">Google Apps Script ウェブアプリURL</div>
-    <input class="inp" id="cfgUrl" placeholder="https://script.google.com/macros/s/.../exec">
-    <div class="lbl2" style="margin-top:8px">通知先メール（代表者・経理／カンマ区切り）</div>
-    <input class="inp" id="cfgEmails" placeholder="daihyo@example.com, keiri@example.com">
-    <label class="row" style="margin-top:12px; gap:8px; cursor:pointer">
-      <input type="checkbox" id="cfgEnabled" style="width:20px; height:20px">
-      <span>日報の作成・更新時に自動で通知＋記録する</span>
-    </label>
-    <div class="row" style="margin-top:12px; gap:8px">
-      <button class="mini abtn" id="cfgSave">💾 保存</button>
-      <button class="mini abtn" id="cfgTest">✉ テスト送信</button>
-      <span class="hint" id="cfgStatus" style="margin-top:0"></span>
+    <h2 id="cfgToggle" style="cursor:pointer; margin-bottom:0">
+      <span class="no" style="background:#6b7280">⚙</span>通知・連携設定（任意）
+      <span id="cfgArrow" style="margin-left:auto; color:var(--muted); font-size:13px; font-weight:400">▸ 開く</span>
+    </h2>
+    <div id="cfgBody" style="display:none; margin-top:12px">
+      <div class="lbl2">Google Apps Script ウェブアプリURL</div>
+      <input class="inp" id="cfgUrl" placeholder="https://script.google.com/macros/s/.../exec">
+      <div class="lbl2" style="margin-top:8px">通知先メール（代表者・経理／カンマ区切り）</div>
+      <input class="inp" id="cfgEmails" placeholder="daihyo@example.com, keiri@example.com">
+      <label class="row" style="margin-top:12px; gap:8px; cursor:pointer">
+        <input type="checkbox" id="cfgEnabled" style="width:20px; height:20px">
+        <span>日報の作成・更新時に自動で通知＋記録する</span>
+      </label>
+      <div class="row" style="margin-top:12px; gap:8px">
+        <button class="mini abtn" id="cfgSave">💾 保存</button>
+        <button class="mini abtn" id="cfgTest">✉ テスト送信</button>
+        <span class="hint" id="cfgStatus" style="margin-top:0"></span>
+      </div>
+      <div class="hint">日報の作成・更新時に、内容が①代表者・経理へメール通知 ②Googleスプレッドシートへ自動記録されます。データはあなた自身のGoogleアカウント内に送られ、外部サーバーは使いません。設定はセットアップガイド参照。</div>
     </div>
-    <div class="hint">日報の作成・更新時に、内容が①代表者・経理へメール通知 ②Googleスプレッドシートへ自動記録されます。データはあなた自身のGoogleアカウント内に送られ、外部サーバーは使いません。設定はセットアップガイド参照。</div>
   </div>
 
   <div class="foot">Isao Matsumoto / 現場27年 × AI — 打ち込みゼロ日報 v1.1</div>
@@ -1440,6 +1445,13 @@ function postGAS(url, payload, okMsg){
     .catch(()=> toast('通知の送信に失敗しました（URL・ネットを確認）'));
 }
 function initNotifyUI(){
+  // 設定は普段たたんでおく（URL・メールの誤操作防止）。⚙をタップで開閉
+  document.getElementById('cfgToggle').onclick = ()=>{
+    const body = document.getElementById('cfgBody');
+    const open = body.style.display === 'none';
+    body.style.display = open ? 'block' : 'none';
+    document.getElementById('cfgArrow').textContent = open ? '▾ 閉じる' : '▸ 開く';
+  };
   const cfg = notifyCfg();
   document.getElementById('cfgUrl').value = cfg.url;
   document.getElementById('cfgEmails').value = cfg.emails;
