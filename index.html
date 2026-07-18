@@ -1531,6 +1531,17 @@ function mergeRemoteIntoLocal(r){
   }
   return changed;
 }
+// クラウド読み込み：fetch優先（携帯でも通りやすい）→ ダメならJSONPにフォールバック
+async function cloudGet(baseUrl){
+  const u = baseUrl + (baseUrl.includes('?')?'&':'?') + 'action=getState';
+  try{
+    const r = await fetch(u, { method:'GET' });      // GASはACAO:* を返すのでCORSで読める
+    if(r.ok) return await r.json();
+    throw new Error('status ' + r.status);
+  }catch(e){
+    return await jsonpGet(baseUrl);                  // 一部環境向けの保険
+  }
+}
 function jsonpGet(url){
   return new Promise((resolve, reject)=>{
     const cb = 'nippo_jsonp_' + Date.now() + Math.floor(Math.random()*1000);
@@ -1555,7 +1566,7 @@ async function cloudSync(push, quiet){
       postGAS(cfg.url, { kind:'state', state: localStateBlob() }, '');
       await new Promise(r=>setTimeout(r, 1500));     // 反映を待ってから読む
     }
-    const remote = await jsonpGet(cfg.url);          // クラウドから最新を読む
+    const remote = await cloudGet(cfg.url);          // クラウドから最新を読む（fetch優先）
     const n = mergeRemoteIntoLocal(remote);
     render();
     if(!quiet) toast(n>0 ? `☁ 同期しました（${n}件更新）` : '☁ 同期しました（最新です）');
