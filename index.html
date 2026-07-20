@@ -500,7 +500,7 @@ function progressPct(){
   return Math.round(sum / STEPS.length * 100);
 }
 let STEPS = load(LS.steps, ['足場設置','高圧洗浄','養生','下地補修','コーキング','下塗り','中塗り','上塗り','付帯部塗装','手直し','片付け','足場解体']);
-const edit = { steps:false, areas:false, workers:false, creator:false };   // 削除モードのON/OFF
+const edit = { steps:false, areas:false, workers:false, creator:false, mats:false };   // 削除モードのON/OFF
 
 /* 工程の状況（大現場では1工程が完全に終わる前に次へ進むため多段階） */
 const STATUS = [
@@ -925,6 +925,41 @@ function fmtDate(d){
   return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}（${w}）`;
 }
 
+/* ---------- 材料チップ（追加・削除つき。項目4・9で共用） ---------- */
+function matChips(elId, store){
+  const el = document.getElementById(elId);
+  el.innerHTML = '';
+  mats.forEach(v=>{
+    const b = document.createElement('div');
+    b.className = 'chip' + (edit.mats ? ' del-mode' : (store[v] ? ' on' : ''));
+    b.textContent = (edit.mats ? '✕ ' : '') + v;
+    b.onclick = ()=>{
+      if(edit.mats){
+        if(confirm(`材料「${v}」をリストから削除しますか？（項目4・9共通です）`)){
+          mats = mats.filter(x=>x!==v); save(LS.mats, mats);
+          delete state.used[v]; delete state.need[v];
+        }
+      } else {
+        if(store[v]) delete store[v]; else store[v] = 1;
+      }
+      render();
+    };
+    el.appendChild(b);
+  });
+  const a = document.createElement('div');
+  a.className='chip add'; a.textContent='＋ 材料を追加';
+  a.onclick = ()=>ask('材料名を追加', v=>{
+    if(!mats.includes(v)){ mats.push(v); save(LS.mats, mats); }
+    store[v] = 1;                       // 追加した材料はそのまま選択状態に
+    render();
+  });
+  el.appendChild(a);
+  const e = document.createElement('div');
+  e.className='chip add'; e.textContent = edit.mats ? '✔ 削除おわり' : '🗑 削除';
+  e.onclick = ()=>{ edit.mats = !edit.mats; render(); };
+  el.appendChild(e);
+}
+
 /* ---------- 材料の増減 ---------- */
 function matRows(containerId, store){
   const el = document.getElementById(containerId);
@@ -981,10 +1016,8 @@ function render(){
   });
   stepAreaRows('nstepAreasList', state.nsteps, state.nstepAreas);
 
-  chips('usedPick', mats, v=>!!state.used[v], v=>{ if(state.used[v]) delete state.used[v]; else state.used[v]=1; },
-    '＋ 材料を追加', ()=>ask('材料名を追加', v=>{ mats.push(v); save(LS.mats,mats); state.used[v]=1; render(); }));
-  chips('needPick', mats, v=>!!state.need[v], v=>{ if(state.need[v]) delete state.need[v]; else state.need[v]=1; },
-    '＋ 材料を追加', ()=>ask('材料名を追加', v=>{ mats.push(v); save(LS.mats,mats); state.need[v]=1; render(); }));
+  matChips('usedPick', state.used);
+  matChips('needPick', state.need);
 
   matRows('usedList', state.used);
   matRows('needList', state.need);
