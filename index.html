@@ -499,7 +499,17 @@ function progressPct(){
   const sum = STEPS.reduce((a,v)=> a + ST(stOf(v)).f, 0);
   return Math.round(sum / STEPS.length * 100);
 }
-let STEPS = load(LS.steps, ['足場設置','高圧洗浄','養生','下地補修','コーキング','下塗り','中塗り','上塗り','付帯部塗装','手直し','片付け','足場解体']);
+const CANON_STEPS = ['足場設置','高圧洗浄','養生','下地補修','コーキング','下塗り','中塗り','上塗り','付帯部塗装','手直し','片付け','足場解体']; // 標準の工程順（並び替え基準）
+let STEPS = load(LS.steps, [...CANON_STEPS]);
+/* 工程を基準の工程順に並び替える。基準にある工程は基準順、独自追加の工程は末尾へ（追加順を維持） */
+function sortSteps(arr){
+  return [...arr].map((v,i)=>({v, i})).sort((a,b)=>{
+    const ai = CANON_STEPS.indexOf(a.v), bi = CANON_STEPS.indexOf(b.v);
+    const ak = ai===-1 ? Infinity : ai, bk = bi===-1 ? Infinity : bi;
+    return ak!==bk ? ak-bk : a.i-b.i;   // 同順位（両方とも独自工程）は元の追加順を保持
+  }).map(o=>o.v);
+}
+STEPS = sortSteps(STEPS);   // 保存済みリストも起動時に整列
 const edit = { steps:false, areas:false, workers:false, creator:false, mats:false };   // 削除モードのON/OFF
 
 /* 工程の状況（大現場では1工程が完全に終わる前に次へ進むため多段階） */
@@ -1050,7 +1060,7 @@ function stepChips(elId, isOn, onTap){
   const a = document.createElement('div');
   a.className='chip add'; a.textContent='＋ 工程を追加';
   a.onclick = ()=>ask('工程を追加（例：ベランダ防水）', v=>{
-    if(!STEPS.includes(v)){ STEPS.push(v); save(LS.steps, STEPS); }
+    if(!STEPS.includes(v)){ STEPS.push(v); STEPS = sortSteps(STEPS); save(LS.steps, STEPS); }
     if(!isOn(v)) onTap(v);          // 追加した工程はそのまま選択状態に
     render();
   });
