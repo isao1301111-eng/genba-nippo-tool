@@ -159,6 +159,7 @@
 <header>
   <h1>打ち込みゼロ日報</h1>
   <p>タップと声だけ。現場日報を30秒で。</p>
+  <div id="notifyBadge" style="display:none; margin-top:8px; font-size:13px; font-weight:700; padding:5px 14px; border-radius:999px; cursor:pointer" title="タップで連携設定を開く"></div>
 </header>
 
 <div class="wrap">
@@ -1071,6 +1072,21 @@ function stepChips(elId, isOn, onTap){
   el.appendChild(e);
 }
 
+/* 次にやる工程：進捗のフロンティア（＝完了 or 進行中の最も後ろの工程）以降で、
+   最初の未完了(≠完了・≠中断)工程を返す。後工程に進捗があれば、先頭工程を明示的に
+   完了マークしていなくても自動で繰り上がる（足場設置が居座り続ける不具合の対策）。 */
+function nextStep(){
+  const moving = { wip:1, multi:1, partial:1, almost:1 };
+  let frontier = -1;
+  STEPS.forEach((v,i)=>{ const s = stOf(v); if(s==='done' || moving[s]) frontier = i; });
+  for(let i=0; i<STEPS.length; i++){
+    if(i < frontier) continue;                 // フロンティアより前は着手済みとみなす
+    const s = stOf(STEPS[i]);
+    if(s!=='done' && s!=='hold') return STEPS[i];
+  }
+  return null;                                  // 全工程 完了
+}
+
 /* ---------- 工程状況（引き継ぎ用）：⬜未着手 → 🔄進行中 → ✅完了 ---------- */
 function renderStepStatus(){
   const el = document.getElementById('stepStatus');
@@ -1092,7 +1108,7 @@ function renderStepStatus(){
   const done = cnt('done');
   const moving = cnt('wip') + cnt('multi') + cnt('partial') + cnt('almost');
   const hold = cnt('hold');
-  const next = STEPS.find(v=>{ const s=stOf(v); return s!=='done' && s!=='hold'; });
+  const next = nextStep();
   sum.innerHTML =
     `<b>✅ 完了 ${done}</b> / 全${STEPS.length}工程　🔵 動いている工程 ${moving}`
     + (hold ? `　⏸️ 中断 ${hold}` : '') + '<br>'
@@ -1344,6 +1360,7 @@ const matv = o => {
 function statusBlock(){
   let out = '';
   STATUS.forEach(s=>{
+    if(!s.k) return;                              // 未着手（＝未設定）はこの現場の対象外としてメールに出さない
     const list = STEPS.filter(v=>stOf(v)===s.k).map(v=>{
       const a = norm(state.stepStatus[v]).areas;
       return v + (a.length ? `（${a.join('・')}）` : '');
@@ -1382,7 +1399,7 @@ function build(acct){
 【この現場の工程状況（引き継ぎ用）】
 全体進捗　：${state.site ? progressPct() : 0} %（工程の状況から自動算出）
 合計人工　：${ninTotal().toFixed(1)} 人工（前回まで ${state.ninPrev.toFixed(1)} ＋ 本日 ${ninToday().toFixed(1)}）
-${statusBlock()}➡️ 次にやる工程：${STEPS.find(v=>stOf(v)!=='done' && stOf(v)!=='hold') || '全工程 完了'}
+${statusBlock()}➡️ 次にやる工程：${nextStep() || '全工程 完了'}
 
 【翌日／次回】
 予定工程　：${setvA(state.nsteps, state.nstepAreas)}
@@ -1521,6 +1538,7 @@ function initNotifyUI(){
     if(c.enabled && !c.url){ status.textContent='⚠️ URLを入力してください'; return; }
     save(LS.notify, c);
     status.textContent = '✅ 保存しました' + (c.enabled ? '（自動通知ON）' : '（自動通知OFF）');
+    updateNotifyBadge();
   };
   document.getElementById('cfgShare').onclick = ()=>{
     const url = document.getElementById('cfgUrl').value.trim();
@@ -1543,6 +1561,32 @@ function initNotifyUI(){
     }, 'テスト送信しました（メールとシートを確認）');
     setTimeout(()=>{ status.textContent='✉ テスト送信済み。メール受信とシート追記を確認してください。'; }, 300);
   };
+  updateNotifyBadge();
+}
+
+/* ---------- 連携状態バッジ（設定が消えたら即気づく保険） ---------- */
+function openNotifyCfg(){
+  var body = document.getElementById('cfgBody');
+  if(!body) return;
+  body.style.display = 'block';
+  var a = document.getElementById('cfgArrow'); if(a) a.textContent = '▾ 閉じる';
+  document.getElementById('cfgToggle').scrollIntoView({ behavior:'smooth', block:'center' });
+}
+function updateNotifyBadge(){
+  var el = document.getElementById('notifyBadge'); if(!el) return;
+  var c = notifyCfg();
+  el.style.display = 'inline-block';
+  el.onclick = openNotifyCfg;
+  if(c.url && c.enabled){
+    el.textContent = '☁ 連携ON（自動で通知・記録）';
+    el.style.background = 'rgba(16,185,129,.18)'; el.style.color = '#059669';
+  }else if(c.url && !c.enabled){
+    el.textContent = '☁ 連携あり・自動通知OFF ▸ タップで設定';
+    el.style.background = 'rgba(245,158,11,.20)'; el.style.color = '#b45309';
+  }else{
+    el.textContent = '⚠ 連携 未設定 ▸ タップで設定';
+    el.style.background = 'rgba(245,158,11,.22)'; el.style.color = '#b45309';
+  }
 }
 
 /* ---------- クラウド同期（引き継ぎ・現場一覧をスプレッドシート経由で共有） ---------- */
