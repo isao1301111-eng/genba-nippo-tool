@@ -222,7 +222,7 @@
     <h2><span class="no">3</span>本日の工程（複数可）</h2>
     <div class="chips" id="steps"></div>
     <div id="stepAreasList" style="margin-top:10px"></div>
-    <div class="hint">工程を選ぶと下に表示されます。「📍 箇所」でどの面・階をやったか記録できます。</div>
+    <div class="hint">工程を選ぶと下に表示されます。「📍 箇所」でどの面・階をやったか記録。「📷 写真」で⑥の写真をその工程に紐付けできます（日報に枚数を反映）。</div>
   </div>
 
   <div class="card">
@@ -454,6 +454,7 @@ const state = {
   steps:new Set(), note:'', nsteps:new Set(), nnote:'',
   used:{}, need:{}, photos:[], stepStatus:{}, ninPrev:0,
   stepAreas:{}, nstepAreas:{},     // 本日/翌日の工程ごとの箇所 {工程:[箇所...]}
+  stepPhotos:{},                   // 本日の工程ごとに紐付けた写真id {工程:[photoId...]}
   workers:{},                      // 本日の作業者 {名前:'full'|'am'|'pm'}
   creator: load(LS.creator, null)  // 日報作成者
 };
@@ -465,6 +466,7 @@ if(CREATORS === null){                        // 初回：既存の作成者が�
 }
 let WORKERS = load(LS.workers, []);   // 作業者名簿（保存され次回も使える）
 let rosterOpen = false;               // 名簿の開閉
+let stepPhotoOpen = null;             // 写真紐付けパネルを開いている工程名
 let reports = load(LS.reports, []);   // 日報履歴 [{d,dl,site,workers,crew,nin,pct,text,creator,ip,createdAt,createdBy,updatedAt,updatedBy}]
 let siteMeta = load(LS.sitemeta, {}); // 現場ごとの最終更新 {site:{at,by}}（クラウド同期の新旧判定用）
 let myIP = null;                      // 端末のIP（給料計算の証跡・参考情報）
@@ -1012,14 +1014,14 @@ function render(){
   renderWorkers();
   renderCreator();
   stepChips('steps', v=>state.steps.has(v), v=>{
-    if(state.steps.has(v)){ state.steps.delete(v); delete state.stepAreas[v]; }
+    if(state.steps.has(v)){ state.steps.delete(v); delete state.stepAreas[v]; delete state.stepPhotos[v]; if(stepPhotoOpen===v) stepPhotoOpen=null; }
     else {
       state.steps.add(v);
       const c = norm(state.stepStatus[v]);
       if(!c.s) state.stepStatus[v] = { s:'wip', areas:c.areas };   // 未着手なら自動で進行中に
     }
   });
-  stepAreaRows('stepAreasList', state.steps, state.stepAreas);
+  stepAreaRows('stepAreasList', state.steps, state.stepAreas, true);
   renderStepStatus();
   stepChips('nsteps', v=>state.nsteps.has(v), v=>{
     if(state.nsteps.has(v)){ state.nsteps.delete(v); delete state.nstepAreas[v]; }
@@ -1051,7 +1053,7 @@ function stepChips(elId, isOn, onTap){
         if(confirm(`工程「${v}」をリストから削除しますか？`)){
           STEPS = STEPS.filter(x=>x!==v); save(LS.steps, STEPS);
           state.steps.delete(v); state.nsteps.delete(v); delete state.stepStatus[v];
-          delete state.stepAreas[v]; delete state.nstepAreas[v];
+          delete state.stepAreas[v]; delete state.nstepAreas[v]; delete state.stepPhotos[v];
         }
       } else onTap(v);
       render();
@@ -1211,19 +1213,46 @@ function drawApick(){
 document.getElementById('apClose').onclick = ()=> apick.close();
 
 /* 選択中の工程を行表示し「📍 箇所」ボタンを付ける（項目3・8共通） */
-function stepAreaRows(containerId, set, map){
+function stepAreaRows(containerId, set, map, withPhotos){
   const el = document.getElementById(containerId);
   el.innerHTML = '';
   [...set].forEach(stp=>{
     const row = document.createElement('div'); row.className='mat';
     const nm  = document.createElement('div'); nm.className='nm';
-    nm.innerHTML = stp + (map[stp]?.length
-      ? ` <small style="color:var(--accent2)">📍${map[stp].join('・')}</small>` : '');
+    const nPh = withPhotos ? (state.stepPhotos[stp]||[]).length : 0;
+    nm.innerHTML = stp
+      + (map[stp]?.length ? ` <small style="color:var(--accent2)">📍${map[stp].join('・')}</small>` : '')
+      + (nPh ? ` <small style="color:#3b82f6">📷${nPh}</small>` : '');
     const btn = document.createElement('button');
     btn.className='mini abtn'; btn.textContent='📍 箇所';
     btn.onclick = ()=> openAreaPicker(stp, map);
     row.append(nm, btn);
+    if(withPhotos){
+      const pb = document.createElement('button');
+      pb.className='mini abtn'; pb.textContent = stepPhotoOpen===stp ? '✔ 写真おわり' : '📷 写真';
+      pb.onclick = ()=>{ stepPhotoOpen = (stepPhotoOpen===stp ? null : stp); render(); };
+      row.append(pb);
+    }
     el.appendChild(row);
+    if(withPhotos && stepPhotoOpen===stp){
+      const pick = document.createElement('div');
+      pick.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 4px;padding:10px;background:rgba(255,255,255,.05);border-radius:10px';
+      if(!state.photos.length){
+        pick.innerHTML = '<small style="color:var(--muted)">先に「6 写真」で写真を選ぶと、ここから工程に紐付けられます</small>';
+      } else {
+        const sel = state.stepPhotos[stp] || (state.stepPhotos[stp] = []);
+        state.photos.forEach(p=>{
+          const on = sel.includes(p.id);
+          const t = document.createElement('div');
+          t.style.cssText = 'position:relative;cursor:pointer;line-height:0';
+          t.innerHTML = `<img src="${p.url}" style="width:66px;height:66px;object-fit:cover;border-radius:8px;border:3px solid ${on?'#3b82f6':'transparent'};opacity:${on?1:.6}">`
+            + (on ? '<span style="position:absolute;top:-6px;right:-6px;background:#3b82f6;color:#fff;border-radius:50%;width:20px;height:20px;font-size:12px;display:flex;align-items:center;justify-content:center">✓</span>' : '');
+          t.onclick = ()=>{ const j = sel.indexOf(p.id); if(j>=0) sel.splice(j,1); else sel.push(p.id); render(); };
+          pick.appendChild(t);
+        });
+      }
+      el.appendChild(pick);
+    }
   });
 }
 
@@ -1330,7 +1359,7 @@ function exifDate(file){
 document.getElementById('pfile').onchange = async e=>{
   for(const f of e.target.files){
     const d = await exifDate(f);
-    state.photos.push({ url:URL.createObjectURL(f), name:f.name, taken:d });
+    state.photos.push({ id:'p'+Date.now()+Math.random().toString(36).slice(2,6), url:URL.createObjectURL(f), name:f.name, taken:d });
   }
   e.target.value=''; render();
 };
@@ -1339,7 +1368,11 @@ function drawPhotos(){
   state.photos.forEach((p,i)=>{
     const d=document.createElement('div'); d.className='ph';
     d.innerHTML = `<img src="${p.url}"><span>${p.taken ? p.taken.slice(5,16) : '日時なし'}</span><b>✕</b>`;
-    d.querySelector('b').onclick=()=>{ state.photos.splice(i,1); render(); };
+    d.querySelector('b').onclick=()=>{
+      const rem = state.photos[i]; state.photos.splice(i,1);
+      if(rem) Object.keys(state.stepPhotos).forEach(k=>{ state.stepPhotos[k]=(state.stepPhotos[k]||[]).filter(id=>id!==rem.id); });
+      render();
+    };
     el.appendChild(d);
   });
 }
@@ -1350,6 +1383,15 @@ const val = v => (v && String(v).trim()) ? String(v).trim() : NA;
 const setv = s => s.size ? [...s].join('、') : NA;
 const setvA = (s,m) => s.size
   ? [...s].map(v => v + (m[v]?.length ? `（${m[v].join('・')}）` : '')).join('、')
+  : NA;
+/* 本日の工程：箇所＋紐付け写真枚数を併記（例：足場設置（北面／📷2枚）） */
+const stepsLine = () => state.steps.size
+  ? [...state.steps].map(v=>{
+      const parts = [];
+      if(state.stepAreas[v]?.length) parts.push(state.stepAreas[v].join('・'));
+      const n = (state.stepPhotos[v]||[]).length; if(n) parts.push('📷'+n+'枚');
+      return v + (parts.length ? `（${parts.join('／')}）` : '');
+    }).join('、')
   : NA;
 const matv = o => {
   const k=Object.keys(o);
@@ -1391,7 +1433,7 @@ function build(acct){
 本日の人工：${ninToday().toFixed(1)} 人工${Object.keys(state.workers).length
   ? '（作業者の個人時間から算出）'
   : (state.hours ? `（${state.crew}名×${state.hours}）` : '')}
-実施工程　：${setvA(state.steps, state.stepAreas)}
+実施工程　：${stepsLine()}
 使用材料　：${matv(state.used)}
 写真　　　：${p}
 特記事項　：${val(state.note)}
@@ -1482,7 +1524,7 @@ document.getElementById('reset').onclick=()=>{
   state.site=null; state.weather=null; state.hours=null; state.crew=3;
   state.steps.clear(); state.nsteps.clear(); state.used={}; state.need={};
   state.photos=[]; state.stepStatus={}; state.ninPrev=0;
-  state.stepAreas={}; state.nstepAreas={}; state.workers={};
+  state.stepAreas={}; state.nstepAreas={}; state.stepPhotos={}; state.workers={}; stepPhotoOpen=null;
   rosterOpen=false; sitePanelOpen=false; tagFilter=null; document.getElementById('siteSearch').value='';
   document.getElementById('note').value=''; document.getElementById('nnote').value='';
   state.note=''; state.nnote='';
