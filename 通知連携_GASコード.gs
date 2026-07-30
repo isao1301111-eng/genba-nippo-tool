@@ -39,9 +39,10 @@ function doPost(e) {
       return json({ ok: true });
     }
 
-    // 通常の日報：シート記録＋メール通知
-    logToSheet(d);
-    sendMail(d);
+    // 通常の日報：写真があればDrive保存（現場/日付フォルダ）→ シート記録＋メール通知
+    var folderUrl = (d.photos && d.photos.length) ? savePhotos(d) : '';
+    logToSheet(d, folderUrl);
+    sendMail(d, folderUrl);
     return json({ ok: true });
   } catch (err) {
     return json({ ok: false, error: String(err) });
@@ -55,12 +56,12 @@ function json(obj) {
 
 /* ---------- 日報の記録・通知 ---------- */
 
-function logToSheet(d) {
+function logToSheet(d, folderUrl) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sh = ss.getSheetByName('日報ログ') || ss.insertSheet('日報ログ');
   if (sh.getLastRow() === 0) {
     sh.appendRow(['受信日時', '種別', '日付', '現場', '作成者', '作成日時',
-      '最終更新者', '最終更新', '人工', '進捗%', 'IP', '作業者', '本文']);
+      '最終更新者', '最終更新', '人工', '進捗%', 'IP', '作業者', '本文', '写真フォルダ']);
   }
   var workers = '';
   if (d.workers) {
@@ -71,11 +72,11 @@ function logToSheet(d) {
   sh.appendRow([
     new Date(), d.type || '', d.date || '', d.site || '', d.creator || '',
     d.createdAt || '', d.updatedBy || '', d.updatedAt || '',
-    d.nin || '', d.pct || '', d.ip || '', workers, d.text || ''
+    d.nin || '', d.pct || '', d.ip || '', workers, d.text || '', folderUrl || ''
   ]);
 }
 
-function sendMail(d) {
+function sendMail(d, folderUrl) {
   if (!d.recipients) return;
   var label = d.type === 'update' ? '【日報 更新】'
             : d.type === 'test'   ? '【通知テスト】'
@@ -89,9 +90,51 @@ function sendMail(d) {
       (d.updatedBy ? '最終更新者：' + d.updatedBy + '\n' : '') +
       '人工　　：' + (d.nin || '') + '　進捗：' + (d.pct || '') + '%\n' +
       'IP　　　：' + (d.ip || '') + '\n' +
+      (folderUrl ? '写真フォルダ：' + folderUrl + '\n' : '') +
       '\n---------------- 日報本文 ----------------\n' +
       (d.text || '');
-  MailApp.sendEmail(d.recipients, subject, body);
+  var options = {};
+  var atts = photoBlobs(d);            // 圧縮済み写真をメールにも添付（すぐ見られる）
+  if (atts.length) options.attachments = atts;
+  MailApp.sendEmail(d.recipients, subject, body, options);
+}
+
+/* ---------- 写真：Drive保存＆メール添付 ---------- */
+
+// d.photos[].data(dataURL) → Blob配列（メール添付用）
+function photoBlobs(d) {
+  var out = [];
+  if (!d.photos) return out;
+  d.photos.forEach(function (p, i) {
+    try {
+      var m = String(p.data || '').match(/^data:(image\/\w+);base64,(.+)$/);
+      if (!m) return;
+      out.push(Utilities.newBlob(Utilities.base64Decode(m[2]), m[1], p.name || ('photo' + (i + 1) + '.jpg')));
+    } catch (e) {}
+  });
+  return out;
+}
+
+// 「日報写真 / 現場名 / 日付」フォルダに保存し、フォルダURLを返す
+function savePhotos(d) {
+  try {
+    var blobs = photoBlobs(d);
+    if (!blobs.length) return '';
+    var root  = getOrCreateFolder(DriveApp.getRootFolder(), '日報写真');
+    var siteF = getOrCreateFolder(root, sanitize(d.site || '現場未指定'));
+    var dateF = getOrCreateFolder(siteF, sanitize((d.date || 'nodate').slice(0, 10)));
+    blobs.forEach(function (b) { dateF.createFile(b); });
+    return dateF.getUrl();
+  } catch (e) { return ''; }
+}
+
+function getOrCreateFolder(parent, name) {
+  var it = parent.getFoldersByName(name);
+  return it.hasNext() ? it.next() : parent.createFolder(name);
+}
+
+function sanitize(s) {
+  return String(s).replace(/[\\/:*?"<>|\n\r]/g, '_').slice(0, 80) || '未設定';
 }
 
 /* ---------- クラウド同期（状態の保存・マージ） ---------- */
