@@ -10,7 +10,10 @@
  * （URLは変わりません）。詳しくは「通知連携_セットアップガイド.md」を参照。
  */
 
-// 動作確認用（URLをブラウザで開くと "OK" と表示されれば公開成功）
+// ★このGASの版（再デプロイが効いているか判定用）。写真対応版＝v3-photo
+var GAS_VERSION = 'v3-photo';
+
+// 動作確認用（URLをブラウザで開くと "OK ... / v3-photo" と表示されれば"新版が公開中"）
 function doGet(e) {
   // クラウド同期：保存済みの状態をJSON（またはJSONP）で返す
   if (e && e.parameter && e.parameter.action === 'getState') {
@@ -22,7 +25,7 @@ function doGet(e) {
     }
     return ContentService.createTextOutput(body).setMimeType(ContentService.MimeType.JSON);
   }
-  return ContentService.createTextOutput('OK - genba-nippo endpoint is running');
+  return ContentService.createTextOutput('OK - genba-nippo endpoint is running / ' + GAS_VERSION);
 }
 
 // アプリからのPOSTを受け取る本体
@@ -83,6 +86,7 @@ function sendMail(d, folderUrl) {
             : '【日報 作成】';
   var subject = label + ' ' + (d.date || '') + ' ' + (d.site || '');
   var body =
+      'GAS版：' + GAS_VERSION + '\n' +
       '種別　　：' + (d.type || '') + '\n' +
       '日付　　：' + (d.date || '') + '\n' +
       '現場　　：' + (d.site || '') + '\n' +
