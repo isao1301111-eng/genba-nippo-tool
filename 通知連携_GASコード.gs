@@ -86,7 +86,6 @@ function sendMail(d, folderUrl) {
             : '【日報 作成】';
   var subject = label + ' ' + (d.date || '') + ' ' + (d.site || '');
   var body =
-      'GAS版：' + GAS_VERSION + '\n' +
       '種別　　：' + (d.type || '') + '\n' +
       '日付　　：' + (d.date || '') + '\n' +
       '現場　　：' + (d.site || '') + '\n' +
@@ -94,8 +93,7 @@ function sendMail(d, folderUrl) {
       (d.updatedBy ? '最終更新者：' + d.updatedBy + '\n' : '') +
       '人工　　：' + (d.nin || '') + '　進捗：' + (d.pct || '') + '%\n' +
       'IP　　　：' + (d.ip || '') + '\n' +
-      '受信した写真：' + (d.photos ? d.photos.length : 0) + '枚' +
-        (d.photos && d.photos.length ? (folderUrl ? '（Drive保存OK）' : '（Drive保存できず→権限を確認）') : '') + '\n' +
+      (d.photos && d.photos.length ? '添付写真：' + d.photos.length + '枚\n' : '') +
       (folderUrl ? '写真フォルダ：' + folderUrl + '\n' : '') +
       '\n---------------- 日報本文 ----------------\n' +
       (d.text || '');
