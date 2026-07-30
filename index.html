@@ -251,7 +251,8 @@
         <b id="ninTotal">0.0</b><span class="unit">人工</span>
       </div>
     </div>
-    <div class="hint">終日=1.0 / 午前のみ・午後のみ=0.5 / 中止=0 で計算。前回までの人工は現場ごとに記憶し、日報作成時に本日分を加算します。<br>
+    <button class="mini abtn" id="ninRecalc" style="margin-top:10px">🔧 この現場の累計を日報履歴から再計算</button>
+    <div class="hint">終日=1.0 / 午前のみ・午後のみ=0.5 / 中止=0 で計算。前回までの人工は現場ごとに記憶し、日報作成時に本日分を加算します。同じ日付を更新しても二重計上しません。累計がずれた時は上の🔧で日報履歴から正せます。<br>
       ※全体進捗％は「工程の状況」から自動算出され、上の引き継ぎ欄に表示されます。</div>
   </div>
 
@@ -327,7 +328,7 @@
     </div>
   </div>
 
-  <div class="foot">Isao Matsumoto / 現場27年 × AI — 打ち込みゼロ日報 v1.4</div>
+  <div class="foot">Isao Matsumoto / 現場27年 × AI — 打ち込みゼロ日報 v1.5</div>
 </div>
 
 <div class="bar">
@@ -496,6 +497,14 @@ const ninToday = () => {
   return state.hours ? +(state.crew * HFACTOR[state.hours]).toFixed(1) : 0;
 };
 const ninTotal = () => +(state.ninPrev + ninToday()).toFixed(1);
+/* 選択中の日付で、その現場に「既に保存済みの本日ぶん人工」を返す（同日再保存の二重計上を防ぐ基準） */
+const recordedTodayNin = (site) => {
+  const dISO = (state.date || fmtDate(new Date())).slice(0,10);
+  const r = reports.find(x => x.d===dISO && x.site===site);
+  return r ? (r.nin || 0) : 0;
+};
+/* 現場の累計から本日保存分を除いた「前回までの人工」 */
+const prevNinOf = (site) => Math.max(0, +(((ninStore[site] ?? 0) - recordedTodayNin(site)).toFixed(1)));
 
 /* 全体進捗％＝工程の状況から自動算出（各工程を均等配分し、状況の達成率で加重） */
 function progressPct(){
@@ -560,7 +569,7 @@ function chips(elId, items, isOn, onTap, addLabel, onAdd){
 function selectSite(v){
   state.site = (state.site===v ? null : v);
   if(state.site){ siteUsed[state.site] = Date.now(); save(LS.used, siteUsed); }
-  state.ninPrev    = state.site ? (ninStore[state.site] ?? 0) : 0;         // 前回までの人工を復元
+  state.ninPrev    = state.site ? prevNinOf(state.site) : 0;               // 前回までの人工を復元（本日保存分は除く＝二重計上しない）
   state.stepStatus = state.site ? {...(statStore[state.site] ?? {})} : {}; // 工程状況を復元
 }
 function siteChips(){
@@ -1282,8 +1291,22 @@ document.querySelectorAll('.rnd').forEach(b=>{
   };
 });
 document.querySelectorAll('[data-nin]').forEach(b=>{
-  b.onclick=()=>{ state.ninPrev = Math.max(0, +(state.ninPrev + Number(b.dataset.nin)).toFixed(1)); render(); };
+  b.onclick=()=>{
+    const dv = Number(b.dataset.nin);
+    state.ninPrev = Math.max(0, +(state.ninPrev + dv).toFixed(1));
+    if(state.site){ ninStore[state.site] = Math.max(0, +(((ninStore[state.site] ?? 0) + dv)).toFixed(1)); save(LS.nin, ninStore); }  // 累計にも反映
+    render();
+  };
 });
+// 累計を日報履歴から再計算（累計がずれた/膨らんだ時の修復。この端末の日報履歴を合算）
+document.getElementById('ninRecalc').onclick = ()=>{
+  if(!state.site){ toast('先に現場を選んでください'); return; }
+  if(!confirm(`「${state.site}」の累計人工を、この端末の日報履歴から計算し直します。\n（手入力した「前回まで」ぶんはリセットされます）`)) return;
+  const sum = +reports.filter(r=>r.site===state.site).reduce((a,r)=>a+(r.nin||0),0).toFixed(1);
+  ninStore[state.site] = sum; save(LS.nin, ninStore);
+  state.ninPrev = prevNinOf(state.site);
+  toast(`累計を再計算：${sum.toFixed(1)}人工`); render();
+};
 
 /* ---------- 音声入力 ---------- */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1491,7 +1514,7 @@ ${acct || ''}
 ────────────────
 ※本日報は、選択・入力された情報のみで作成しています。
 　未入力の項目は推測で補完せず「（記載なし）」と表示しています。
-　作成: 打ち込みゼロ日報 v1.4（写真クラウド対応）`;
+　作成: 打ち込みゼロ日報 v1.5（写真クラウド対応）`;
 }
 
 function nowStamp(){
@@ -1537,10 +1560,9 @@ document.getElementById('make').onclick=()=>{
   if(state.site){                       // 現場ごとの工程状況・累計人工を保存（次回は続きから）
     statStore[state.site] = {...state.stepStatus};
     save(LS.stat, statStore);
-    // 累計＝前回まで＋本日。ninPrevは変えずに保存するので、再作成しても二重加算されない。
-    // 次にこの現場を開いた時（＝翌日想定）に、この累計が「前回まで」として復元される。
-    const newNin = ninTotal();
-    ninStore[state.site] = newNin;
+    // 累計＝(既存累計 − 同じ日付の前回保存分) ＋ 本日。同じ日を何度更新しても二重計上しない。
+    const prevTodayNin = prev ? (prev.nin || 0) : 0;
+    ninStore[state.site] = Math.max(0, +(((ninStore[state.site] ?? 0) - prevTodayNin) + ninToday()).toFixed(1));
     save(LS.nin, ninStore);
     siteMeta[state.site] = { at: Date.now(), by: creator };   // クラウド同期の新旧判定用
     save(LS.sitemeta, siteMeta);
@@ -1700,7 +1722,7 @@ function mergeRemoteIntoLocal(r){
   save(LS.sitemeta,siteMeta); save(LS.used,siteUsed);
   if(state.site){                                  // 選択中の現場を最新に反映
     state.stepStatus = {...(statStore[state.site] || {})};
-    state.ninPrev = ninStore[state.site] ?? 0;
+    state.ninPrev = prevNinOf(state.site);
   }
   return changed;
 }
