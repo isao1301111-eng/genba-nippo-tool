@@ -261,7 +261,8 @@
       <input type="file" id="pfile" accept="image/*" multiple hidden>
     </label>
     <div class="photos" id="photos"></div>
-    <div class="hint">写真の撮影日時（EXIF）を自動で読み取ります。中身の自動判読は行いません。</div>
+    <div id="photoSendStat" class="hint" style="margin-bottom:4px"></div>
+    <div class="hint">写真の撮影日時（EXIF）を自動で読み取ります。中身の自動判読は行いません。連携ONなら日報作成時にクラウドへ自動アップロードします。</div>
   </div>
 
   <div class="card">
@@ -326,7 +327,7 @@
     </div>
   </div>
 
-  <div class="foot">Isao Matsumoto / 現場27年 × AI — 打ち込みゼロ日報 v1.3</div>
+  <div class="foot">Isao Matsumoto / 現場27年 × AI — 打ち込みゼロ日報 v1.4</div>
 </div>
 
 <div class="bar">
@@ -1356,28 +1357,41 @@ function exifDate(file){
     fr.readAsArrayBuffer(file.slice(0,131072));
   });
 }
-/* 送信用に写真を圧縮・リサイズ（長辺maxDimのJPEG）→ dataURLを返す。数MB→数百KBに。 */
-function compressImage(file, maxDim, quality){
-  return new Promise(res=>{
-    const img = new Image();
-    const src = URL.createObjectURL(file);
-    img.onload = ()=>{
-      let w = img.naturalWidth, h = img.naturalHeight;
-      if(Math.max(w,h) > maxDim){ const s = maxDim/Math.max(w,h); w = Math.round(w*s); h = Math.round(h*s); }
-      const c = document.createElement('canvas'); c.width = w; c.height = h;
-      c.getContext('2d').drawImage(img, 0, 0, w, h);
-      URL.revokeObjectURL(src);
-      try{ res(c.toDataURL('image/jpeg', quality)); }catch(e){ res(null); }
-    };
-    img.onerror = ()=>{ URL.revokeObjectURL(src); res(null); };
-    img.src = src;
-  });
+/* 送信用に写真を圧縮・リサイズ（長辺maxDimのJPEG）→ dataURL。失敗時null。
+   createImageBitmapを優先（HEIC/大容量・モバイルに強い）、無い環境は<img>にフォールバック。 */
+async function compressImage(file, maxDim, quality){
+  try{
+    let bmp, w, h, cleanup;
+    if(self.createImageBitmap){
+      bmp = await createImageBitmap(file); w = bmp.width; h = bmp.height;
+    } else {
+      const u = URL.createObjectURL(file);
+      bmp = await new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=rej; im.src=u; });
+      w = bmp.naturalWidth; h = bmp.naturalHeight; cleanup = ()=>URL.revokeObjectURL(u);
+    }
+    if(Math.max(w,h) > maxDim){ const s = maxDim/Math.max(w,h); w = Math.round(w*s); h = Math.round(h*s); }
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    c.getContext('2d').drawImage(bmp, 0, 0, w, h);
+    if(bmp.close) bmp.close();
+    if(cleanup) cleanup();
+    return c.toDataURL('image/jpeg', quality);
+  }catch(e){ return null; }
+}
+/* 送信データ生成：圧縮を試し、ダメなら原本(3MBまで)をそのまま。それも無理ならnull。 */
+async function photoData(file){
+  const d = await compressImage(file, 1280, 0.6);
+  if(d) return d;
+  if(file.size <= 3*1024*1024){
+    return await new Promise(res=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>res(null); fr.readAsDataURL(file); });
+  }
+  return null;
 }
 document.getElementById('pfile').onchange = async e=>{
   for(const f of e.target.files){
     const d = await exifDate(f);
-    const comp = await compressImage(f, 1280, 0.6);   // 送信・保存用の軽量版
-    state.photos.push({ id:'p'+Date.now()+Math.random().toString(36).slice(2,6), url:URL.createObjectURL(f), name:f.name, taken:d, comp });
+    const comp = await photoData(f);   // 送信・保存用データ（圧縮 or 原本）
+    const nm = (f.name || 'photo').replace(/\.[^.]+$/,'') + '.jpg';
+    state.photos.push({ id:'p'+Date.now()+Math.random().toString(36).slice(2,6), url:URL.createObjectURL(f), name:nm, taken:d, comp });
   }
   e.target.value=''; render();
 };
@@ -1393,6 +1407,14 @@ function drawPhotos(){
     };
     el.appendChild(d);
   });
+  const stat = document.getElementById('photoSendStat');
+  if(stat){
+    const ok = state.photos.filter(p=>p.comp).length, tot = state.photos.length;
+    stat.innerHTML = tot
+      ? (`☁ 日報作成で自動送信できる写真：<b>${ok}/${tot}枚</b>`
+         + (ok < tot ? '　<span style="color:var(--warn)">⚠ 一部は読み込めず送信できません</span>' : ''))
+      : '';
+  }
 }
 
 /* ---------- 日報生成（ハルシネーション防止：未入力は「記載なし」） ---------- */
@@ -1469,7 +1491,7 @@ ${acct || ''}
 ────────────────
 ※本日報は、選択・入力された情報のみで作成しています。
 　未入力の項目は推測で補完せず「（記載なし）」と表示しています。
-　作成: 打ち込みゼロ日報 v1.3（写真クラウド対応）`;
+　作成: 打ち込みゼロ日報 v1.4（写真クラウド対応）`;
 }
 
 function nowStamp(){
