@@ -182,24 +182,6 @@
     </div>
   </div>
 
-  <div class="card handover">
-    <h2><span class="no" style="background:var(--ok)">📋</span>この現場の工程状況（引き継ぎ用）</h2>
-    <div class="ptotal" style="margin-bottom:10px">
-      <span class="unit">全体進捗</span>
-      <b id="totalVal">0</b><span class="unit">%</span>
-      <em id="ninBadge">合計 0.0 人工</em>
-    </div>
-    <div class="pbar"><i id="pbDone" style="background:var(--ok)"></i></div>
-    <div class="sum" id="stepSummary">現場を選ぶと表示されます</div>
-    <div class="chips" style="margin-bottom:10px">
-      <div class="chip add" id="histBtn">📖 過去の日報・検索（人工/給料計算）</div>
-      <div class="chip add" id="syncBtn">🔄 クラウド同期</div>
-    </div>
-    <div class="chips" id="stepStatus"></div>
-    <div class="hint">工程をタップ →「状況」と「箇所」を選べます（⬜未着手 / 🔵進行中 / 🟣数か所進行中 / 🟡一部完了 / 🟠ほぼ完了 / ✅完了 / ⏸️中断）<br>
-      現場ごとに記憶します。<b>次に入る人がこの現場をタップすれば、どの工程がどこまで・どの面が終わっているか一目で分かります。</b></div>
-  </div>
-
   <div class="card">
     <h2><span class="no">2</span>天候・作業時間・人数</h2>
     <div class="chips" id="weather"></div>
@@ -283,16 +265,49 @@
   </div>
 
   <div class="card" style="border-color:var(--accent2)">
-    <h2><span class="no" style="background:var(--accent2); color:#1a1a1a">9</span>翌日／次回に必要な塗料・材料</h2>
+    <h2><span class="no" style="background:var(--accent2); color:#1a1a1a">9</span>翌日／次回に使う塗料・材料</h2>
     <div id="needList"></div>
     <div class="chips" id="needPick"></div>
-    <div class="hint">⚠️ 欠品による現場ストップを防ぎます。日報からそのまま発注リストとして使えます。</div>
+    <div class="hint">使うものを全部あげてください。<b>各行の 📦／🏗️／🚚 をタップして「今どこにあるか」を選びます。</b><br>
+      🏗️現場にある・🚚車に積んである ものは手配が要りません。<b>📦手配 のものだけが下の「必要な材料」に入ります。</b></div>
+  </div>
+
+  <!-- ★「使う材料」と「手配が要る材料」は別物。
+       現場や車にある分を数えずに発注すると、二重発注になる -->
+  <div class="card" style="border-color:var(--accent)">
+    <h2><span class="no" style="background:var(--accent); color:#fff">10</span>必要な材料（手配するもの）</h2>
+    <div id="needStock"></div>
+    <div class="row" style="margin-top:10px; gap:8px; flex-wrap:wrap">
+      <button class="mini abtn" id="zReload">🔄 在庫を更新</button>
+      <button class="mini abtn" id="zOrder" style="background:var(--accent); border-color:var(--accent); color:#fff">🛒 不足分を発注リストへ</button>
+    </div>
+    <div class="hint">⚠️ 欠品による現場ストップを防ぎます。在庫アプリを連携すると、<b>ここで「足りるか足りないか」が分かり、不足分をそのまま発注リストに載せられます</b>（⚙設定で在庫アプリのURLを入れてください）。</div>
   </div>
 
   <div class="card">
     <h2><span class="no" style="background:#3b82f6">✍</span>作成者</h2>
     <div class="chips" id="creatorSel"></div>
     <div class="hint" id="creatorHint">日報を作成した本人を選びます。日報・履歴に作成者・作成日時・IPが記録されます（証跡）。</div>
+  </div>
+
+  <!-- ★工程状況は「入力し終えてから最後に確認する」ものなので、入力欄の一番下に置く。
+       ここで進捗を付け直してから、下の「日報を作成」でレビューに進む流れにする -->
+  <div class="card handover">
+    <h2><span class="no" style="background:var(--ok)">📋</span>この現場の工程状況（引き継ぎ用）＝最後に確認</h2>
+    <div class="ptotal" style="margin-bottom:10px">
+      <span class="unit">全体進捗</span>
+      <b id="totalVal">0</b><span class="unit">%</span>
+      <em id="ninBadge">合計 0.0 人工</em>
+    </div>
+    <div class="pbar"><i id="pbDone" style="background:var(--ok)"></i></div>
+    <div class="sum" id="stepSummary">現場を選ぶと表示されます</div>
+    <div class="chips" style="margin-bottom:10px">
+      <div class="chip add" id="histBtn">📖 過去の日報・検索（人工/給料計算）</div>
+      <div class="chip add" id="syncBtn">🔄 クラウド同期</div>
+    </div>
+    <div class="chips" id="stepStatus"></div>
+    <div class="hint">工程をタップ →「状況」と「箇所」を選べます（⬜未着手 / 🔵進行中 / 🟣数か所進行中 / 🟡一部完了 / 🟠ほぼ完了 / ✅完了 / ⏸️中断）<br>
+      現場ごとに記憶します。<b>次に入る人がこの現場をタップすれば、どの工程がどこまで・どの面が終わっているか一目で分かります。</b></div>
   </div>
 
   <div class="card">
@@ -318,17 +333,21 @@
         <input type="checkbox" id="cfgEnabled" style="width:20px; height:20px">
         <span>日報の作成・更新時に自動で通知＋記録する</span>
       </label>
+      <div class="lbl2" style="margin-top:14px">在庫アプリの連携（任意）</div>
+      <input class="inp" id="cfgZGas" placeholder="在庫用GASのURL（https://script.google.com/.../exec）">
+      <input class="inp" id="cfgZApp" placeholder="在庫アプリのURL（index.html の場所）" style="margin-top:8px">
       <div class="row" style="margin-top:12px; gap:8px; flex-wrap:wrap">
         <button class="mini abtn" id="cfgSave">💾 保存</button>
         <button class="mini abtn" id="cfgTest">✉ テスト送信</button>
         <button class="mini abtn" id="cfgShare">🔗 設定リンクをコピー</button>
+        <button class="mini abtn" id="cfgZTest">📦 在庫を読み込む</button>
         <span class="hint" id="cfgStatus" style="margin-top:0"></span>
       </div>
       <div class="hint">日報の作成・更新時に、内容が①代表者・経理へメール通知 ②Googleスプレッドシートへ自動記録されます。データはあなた自身のGoogleアカウント内に送られ、外部サーバーは使いません。<br><b>🔗 設定リンク</b>を職人さんに送れば、その端末は設定不要で使えます（リンクは社内だけで共有してください）。</div>
     </div>
   </div>
 
-  <div class="foot">Isao Matsumoto / 現場27年 × AI — 打ち込みゼロ日報 v1.5</div>
+  <div class="foot">Isao Matsumoto / 現場27年 × AI — 打ち込みゼロ日報 v1.6</div>
 </div>
 
 <div class="bar">
@@ -336,6 +355,20 @@
   <button class="primary" id="make">日報を作成</button>
   <button class="primary" id="copy" style="background:var(--ok)">コピー</button>
 </div>
+
+<!-- ★送信前レビュー：記入漏れ・ミスを出してから、本人が納得して送る。
+     ここを通さないと通知・記録は送られない（誤送信の取り消しは効かないため） -->
+<dialog id="rev">
+  <h3 style="margin:0 0 2px">送信前の確認</h3>
+  <div class="hint" id="revHead" style="margin-top:0">内容を確認してから送信してください。</div>
+  <div id="revIssues" style="margin:12px 0"></div>
+  <div class="lbl2">日報の内容</div>
+  <div class="out" id="revText" style="max-height:38vh; overflow:auto"></div>
+  <div class="row" style="margin-top:14px; gap:8px; flex-wrap:wrap; justify-content:flex-end">
+    <button class="mini abtn" id="revBack">← 修正する</button>
+    <button class="mini abtn" id="revSend" style="background:var(--ok); border-color:var(--ok); color:#fff; font-weight:700">保存して送信</button>
+  </div>
+</dialog>
 
 <div class="toast" id="toast"></div>
 
@@ -454,7 +487,8 @@ let editTagMode = false;             // タグ削除モード
 const state = {
   site:null, date:null, weather:null, hours:null, crew:3,
   steps:new Set(), note:'', nsteps:new Set(), nnote:'',
-  used:{}, need:{}, photos:[], stepStatus:{}, ninPrev:0,
+  used:{}, need:{}, have:{},        // have＝翌日材料が「今どこにあるか」{材料名:'現場'|'車'}。未設定＝手配が要る
+  photos:[], stepStatus:{}, ninPrev:0,
   stepAreas:{}, nstepAreas:{},     // 本日/翌日の工程ごとの箇所 {工程:[箇所...]}
   stepPhotos:{},                   // 本日の工程ごとに紐付けた写真id {工程:[photoId...]}
   workers:{},                      // 本日の作業者 {名前:'full'|'am'|'pm'}
@@ -983,10 +1017,15 @@ function matChips(elId, store){
   el.appendChild(e);
 }
 
-/* ---------- 材料の増減 ---------- */
+/* ---------- 材料の増減 ----------
+   翌日ぶん（needList）だけは「今どこにあるか」を切り替えられるようにする。
+   📦手配＝倉庫から出す/発注が要る ／ 🏗️現場・🚚車＝もう手元にあるので手配不要。 */
+const PLACE_CYCLE = [null, '現場', '車'];                       // null＝手配が要る
+const PLACE_ICON  = { 'null':'📦 手配', '現場':'🏗️ 現場', '車':'🚚 車' };
 function matRows(containerId, store){
   const el = document.getElementById(containerId);
   el.innerHTML='';
+  const isNeed = containerId === 'needList';
   Object.keys(store).forEach(nm=>{
     const row=document.createElement('div'); row.className='mat';
     const n=document.createElement('div'); n.className='nm'; n.textContent=nm;
@@ -995,12 +1034,34 @@ function matRows(containerId, store){
     const plus=document.createElement('button'); plus.className='mini'; plus.textContent='＋';
     const u=document.createElement('span'); u.className='unit'; u.textContent='缶/個';
     const del=document.createElement('button'); del.className='del'; del.textContent='✕';
-    minus.onclick=()=>{ store[nm]=Math.max(0,store[nm]-1); if(store[nm]===0) delete store[nm]; render(); };
+    minus.onclick=()=>{ store[nm]=Math.max(0,store[nm]-1); if(store[nm]===0){ delete store[nm]; delete state.have[nm]; } render(); };
     plus.onclick =()=>{ store[nm]++; render(); };
-    del.onclick  =()=>{ delete store[nm]; render(); };
-    row.append(n,minus,q,plus,u,del);
+    del.onclick  =()=>{ delete store[nm]; delete state.have[nm]; render(); };
+    if(isNeed){
+      const cur = state.have[nm] || null;
+      const pl = document.createElement('button');
+      pl.className = 'mini';
+      pl.textContent = PLACE_ICON[String(cur)];
+      pl.title = 'タップで「手配 → 現場 → 車」と切り替わります';
+      if(cur){ pl.style.cssText = 'background:var(--ok); border-color:var(--ok); color:#fff'; }
+      pl.onclick = ()=>{
+        const i = PLACE_CYCLE.indexOf(cur);
+        const next = PLACE_CYCLE[(i+1) % PLACE_CYCLE.length];
+        if(next) state.have[nm] = next; else delete state.have[nm];
+        render();
+      };
+      row.append(n,minus,q,plus,u,pl,del);
+    } else {
+      row.append(n,minus,q,plus,u,del);
+    }
     el.appendChild(row);
   });
+}
+/* 手配が要る材料だけ（現場・車にあるものは除く）＝「必要な材料」 */
+function needToOrder(){
+  const o = {};
+  Object.keys(state.need).forEach(nm=>{ if(!state.have[nm]) o[nm] = state.need[nm]; });
+  return o;
 }
 
 /* ---------- 追加ダイアログ ---------- */
@@ -1044,6 +1105,7 @@ function render(){
 
   matRows('usedList', state.used);
   matRows('needList', state.need);
+  renderNeedStock();                 // 翌日必要な材料の在庫（連携時のみ表示）
 
   document.getElementById('crew').textContent = state.crew;
   drawProgress();
@@ -1460,6 +1522,15 @@ const matv = o => {
   const k=Object.keys(o);
   return k.length ? '\n' + k.map(n=>`　・${n} … ${o[n]} 缶/個`).join('\n') : ' ' + NA;
 };
+/* 翌日に使う材料は「今どこにあるか」も一緒に出す（現場・車にある分は手配不要と分かるように） */
+const matvHave = o => {
+  const k=Object.keys(o);
+  if(!k.length) return ' ' + NA;
+  return '\n' + k.map(n=>{
+    const w = state.have[n];
+    return `　・${n} … ${o[n]} 缶/個${w ? `（${w}にあり）` : '（要手配）'}`;
+  }).join('\n');
+};
 
 /* 工程状況を「状況ごと」に整形（箇所があれば併記） */
 function statusBlock(){
@@ -1508,23 +1579,260 @@ ${statusBlock()}➡️ 次にやる工程：${nextStep() || '全工程 完了'}
 
 【翌日／次回】
 予定工程　：${setvA(state.nsteps, state.nstepAreas)}
-必要な塗料・材料：${matv(state.need)}
+使う塗料・材料：${matvHave(state.need)}
+手配が必要　：${matv(needToOrder())}
 備考　　　：${val(state.nnote)}
 ${acct || ''}
 ────────────────
 ※本日報は、選択・入力された情報のみで作成しています。
 　未入力の項目は推測で補完せず「（記載なし）」と表示しています。
-　作成: 打ち込みゼロ日報 v1.5（写真クラウド対応）`;
+　作成: 打ち込みゼロ日報 v1.6（送信前レビュー・在庫連携）`;
 }
 
 function nowStamp(){
   const d=new Date(), p=n=>String(n).padStart(2,'0');
   return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
-document.getElementById('make').onclick=()=>{
+/* ==========================================================================
+   在庫アプリ連携：翌日必要な材料が「足りるか」を日報の中で出す
+   ねらい＝倉庫まで確かめに行く手間と、二重発注・発注もれを無くす。
+   在庫アプリは別GAS・別画面なので、ここでは**読むだけ**（書き込みはしない）。
+   ========================================================================== */
+const LSZ = { cfg:'nippo_zaiko_v1', cache:'nippo_zcache_v1' };
+let zCfg   = load(LSZ.cfg, { gas:'', app:'' });
+let zCache = load(LSZ.cache, { materials:[], stocks:[], cans:[], at:0 });
+let zShort = [];                                   // 在庫が足りない材料（発注リストへ送る候補）
+
+function zGet(){                                   // 在庫GASから一括取得（日報と同じfetch→JSONP方式）
+  const base = zCfg.gas;
+  if(!base) return Promise.reject(new Error('在庫GASのURLが未設定'));
+  const url = base + (base.includes('?')?'&':'?') + 'action=getAll&recent=5';
+  const unwrap = r => { if(r && r.ok) return r.data; throw new Error((r&&r.error)||'不明な応答'); };
+  return fetch(url).then(r=>{ if(!r.ok) throw new Error('status '+r.status); return r.json(); })
+    .then(unwrap)
+    .catch(()=> new Promise((res,rej)=>{         // CORSが通らない端末向けの保険
+      const cb='nippo_z_'+Date.now(); const s=document.createElement('script');
+      const done=()=>{ try{delete window[cb];}catch(e){window[cb]=undefined;} s.remove(); };
+      window[cb]=d=>{ try{ res(unwrap(d)); }catch(e){ rej(e); } done(); };
+      s.onerror=()=>{ rej(new Error('在庫アプリに接続できません')); done(); };
+      s.src = url + '&callback=' + cb; document.body.appendChild(s);
+      setTimeout(()=>{ if(window[cb]){ rej(new Error('タイムアウト')); done(); } }, 15000);
+    }));
+}
+function zLoad(quiet){
+  if(!zCfg.gas) return Promise.resolve();
+  return zGet().then(d=>{
+    zCache = { materials:d.materials||[], stocks:d.stocks||[], cans:d.cans||[], at:Date.now() };
+    save(LSZ.cache, zCache);
+    renderNeedStock();
+    if(!quiet) toast(`📦 在庫を読み込みました（${zCache.materials.length}件）`);
+  }).catch(e=>{ if(!quiet) toast('在庫の読み込み失敗：' + e.message); });
+}
+
+/* 日報の材料名（例「シーラー(下塗り材)」）と在庫の品名は綴りが違う。
+   括弧書きを落として部分一致で探す。完全一致を求めると実運用でまず当たらない。 */
+function zMatch(name){
+  const n = String(name).toLowerCase().replace(/[（(].*?[）)]/g,'').replace(/\s+/g,'').trim();
+  if(!n) return [];
+  return (zCache.materials||[]).filter(m=>{
+    const hay = [m.name, m.color, m.colorName, m.maker].filter(Boolean).join('').toLowerCase();
+    const mn  = String(m.name||'').toLowerCase().replace(/\s+/g,'');
+    return hay.includes(n) || (mn && n.includes(mn));
+  });
+}
+/* 在庫の缶数。未開封＋余り缶（残量5分のいくつ）を足した「換算缶数」で見る。
+   倉庫の中身はほとんど余り物なので、未開封だけで数えると実態と合わない。 */
+function zStock(matId){
+  const sealed = (zCache.stocks||[]).filter(s=>s.id===matId).reduce((a,b)=>a+(b.sealed||0),0);
+  const cans   = (zCache.cans||[]).filter(c=>c.id===matId && c.remain>0);
+  return { sealed, cans, equiv: +(sealed + cans.reduce((a,c)=>a+c.remain/5,0)).toFixed(1) };
+}
+function zAppLink(q){
+  if(!zCfg.app) return null;
+  const sep = zCfg.app.includes('?') ? '&' : '?';
+  return zCfg.app + sep + 'q=' + encodeURIComponent(q) + (zCfg.gas ? '&gas=' + encodeURIComponent(zCfg.gas) : '');
+}
+
+function renderNeedStock(){
+  const box = document.getElementById('needStock');
+  if(!box) return;
+  box.innerHTML = '';
+  const order = needToOrder();                                // ★手配が要るものだけ
+  const names = Object.keys(order);
+  const held  = Object.keys(state.need).filter(nm=>state.have[nm]);
+  if(held.length){                                            // 手配不要のものは根拠として残す
+    const h = document.createElement('div');
+    h.className = 'hint'; h.style.marginTop = '0';
+    h.innerHTML = '手配不要：' + held.map(nm=>`${nm}（${state.have[nm]}）`).join('、');
+    box.appendChild(h);
+  }
+  if(!names.length){
+    const m = document.createElement('div');
+    m.className = 'sum'; m.style.borderColor = 'var(--ok)';
+    m.textContent = Object.keys(state.need).length
+      ? '✅ 手配が必要な材料はありません（すべて現場・車にあります）'
+      : '項目9で使う材料を選ぶと、ここに手配が必要なものが出ます。';
+    box.appendChild(m);
+    return;
+  }
+  if(!zCfg.gas){                                              // 未連携でも手配リストだけは出す
+    names.forEach(nm=>{
+      const r = document.createElement('div'); r.className='sum'; r.style.marginTop='6px';
+      r.innerHTML = `<b>${nm}</b> … ${order[nm]} 缶/個`;
+      box.appendChild(r);
+    });
+    const h = document.createElement('div'); h.className='hint';
+    h.textContent = '在庫アプリを連携すると、足りるか足りないかが分かります。';
+    box.appendChild(h);
+    return;
+  }
+
+  const stale = Date.now() - (zCache.at||0) > 6*3600*1000;   // 6時間以上前なら「古い」と伝える
+  const head = document.createElement('div');
+  head.className = 'hint'; head.style.marginTop = '0';
+  head.innerHTML = zCache.at
+    ? `在庫データ：${new Date(zCache.at).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})} 時点${stale?'（古いので更新してください）':''}`
+    : '在庫をまだ読み込んでいません';
+  box.appendChild(head);
+
+  zShort = [];                                     // 不足分（発注リストへ送る材料）を作り直す
+  names.forEach(nm=>{
+    const needQty = order[nm] || 0;
+    const hits = zMatch(nm);
+    const row = document.createElement('div');
+    row.className = 'sum';
+    row.style.marginTop = '6px';
+
+    if(!hits.length){
+      row.style.borderColor = 'var(--line)';
+      row.innerHTML = `<b>${nm}</b> — <span class="unit">在庫アプリに未登録</span>`;
+    }else{
+      // 複数当たったら換算缶数の合計で判断（同じ品名の色違いなど）
+      const tot = hits.reduce((a,m)=>{ const s=zStock(m.id); return { sealed:a.sealed+s.sealed,
+                    cans:a.cans+s.cans.length, equiv:+(a.equiv+s.equiv).toFixed(1) }; },
+                    {sealed:0,cans:0,equiv:0});
+      const enough = tot.equiv >= needQty;
+      row.style.borderColor = enough ? 'var(--ok)' : 'var(--accent)';
+      const detail = hits.length > 1 ? `（候補${hits.length}件）` : '';
+      // 不足していて、候補が1件に絞れているものだけ発注リストへ送れる
+      if(!enough && hits.length === 1){
+        zShort.push({ id: hits[0].id, name: nm, qty: Math.ceil(needQty - tot.equiv) });
+      }
+      row.innerHTML =
+        `<b>${nm}</b> 必要 ${needQty} → ${enough?'✅ 足ります':'🛑 <b>不足 ' + (+(needQty-tot.equiv).toFixed(1)) + '</b>'}${detail}<br>` +
+        `<span class="unit">倉庫：未開封 ${tot.sealed}${tot.cans?` ／余り ${tot.cans}本`:''}（換算 ${tot.equiv} 缶）</span>`;
+    }
+    const link = zAppLink(nm);
+    if(link){
+      const a = document.createElement('a');
+      a.href = link; a.target = '_blank'; a.rel = 'noopener';
+      a.textContent = hits.length ? ' 在庫アプリで見る →' : ' 在庫アプリで登録する →';
+      a.style.cssText = 'display:inline-block; margin-top:4px; font-size:12px; color:var(--accent2)';
+      row.appendChild(a);
+    }
+    box.appendChild(row);
+  });
+}
+
+/* 不足分を在庫アプリの発注リストへ送る（在庫は減らさない。あくまで「発注予定」を積むだけ） */
+document.getElementById('zReload').onclick = ()=> zLoad(false);
+document.getElementById('zOrder').onclick = ()=>{
+  if(!zCfg.gas){ toast('⚙設定で在庫アプリを連携してください'); return; }
+  if(!zShort.length){ toast('発注リストに載せる不足分はありません'); return; }
+  const lines = zShort.map(s=>`・${s.name} ${s.qty}`).join('\n');
+  if(!confirm(`次の不足分を発注リストに追加します。\n\n${lines}\n\nよろしいですか？`)) return;
+  fetch(zCfg.gas, { method:'POST', mode:'no-cors',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ kind:'order', items:zShort, site:state.site||'',
+                           by:state.creator||'', note:'日報の必要材料から' }) })
+    .then(()=> toast(`🛒 発注リストに ${zShort.length}件 追加しました`))
+    .catch(()=> toast('送信に失敗しました'));
+};
+
+/* ---------- 記入漏れ・ミスの検出（送信前レビュー用） ----------
+   err  = これを落とすとデータが壊れる（累計が保存されない・誰が書いたか残らない）→ 送信させない
+   warn = 直した方がよいが、その日の事情で正しいこともある（中止の日など）→ 送信は止めない   */
+function validateReport(){
+  const out = [];
+  const err  = m => out.push({ lv:'err',  m });
+  const warn = m => out.push({ lv:'warn', m });
+  const stop = state.hours === '中止';               // 中止の日は「やっていない」が正しい
+
+  if(!state.site)    err('現場が選ばれていません（このままだと累計人工・進捗が保存されません）');
+  if(!state.creator) err('作成者が選ばれていません（誰が書いたかの記録が残りません）');
+
+  if(!state.weather) warn('天候が未選択です');
+  if(!state.hours)   warn('作業時間が未選択です');
+  if(!stop && state.steps.size === 0) warn('本日の工程が1つも選ばれていません');
+  if(!stop && Object.keys(state.used).length === 0) warn('本日使用した塗料・材料が未選択です');
+
+  const wn = Object.keys(state.workers).length;
+  if(!stop && wn === 0) warn('作業者が未選択です（人数×作業時間のざっくり計算になります）');
+  if(wn && wn !== state.crew) warn(`作業人数 ${state.crew}名 と 選んだ作業者 ${wn}名 が合っていません`);
+  if(!stop && ninToday() === 0) warn('本日の人工が 0 です（作業時間か作業者を確認してください）');
+
+  if(!stop && state.photos.length === 0) warn('写真が1枚もありません');
+  if(state.nsteps.size === 0 && !document.getElementById('nnote').value.trim())
+    warn('翌日／次回の予定が未記入です（次に入る人が困ります）');
+  if(Object.keys(state.need).length === 0) warn('翌日／次回に使う材料が未選択です（発注もれの原因になります）');
+  if(zShort.length) warn(`在庫が足りない材料が ${zShort.length}件 あります（${zShort.map(s=>s.name).join('、')}）。発注リストに載せましたか？`);
+
+  // 日付の打ち間違い
+  const dISO = (state.date || fmtDate(new Date())).slice(0,10);
+  const today = fmtDate(new Date()).slice(0,10);
+  if(dISO > today) warn(`日付が未来になっています（${dISO}）`);
+
+  // 同じ現場×同じ日付が既にある＝上書き更新になる
+  const prev = reports.find(r => r.d===dISO && r.site===(state.site||'（現場未指定）'));
+  if(prev) warn(`同じ現場・同じ日付の日報があります。上書き更新になります（作成：${prev.createdAt||'—'}）`);
+
+  // 進捗が前回より下がっている＝工程状況の付け間違いの可能性
+  if(state.site && prev && progressPct() < (prev.pct||0))
+    warn(`全体進捗が前回より下がっています（${prev.pct}% → ${progressPct()}%）。工程状況を確認してください`);
+
+  return out;
+}
+
+/* 「日報を作成」＝まず作らずにレビューを開く。送信はレビューで承認してから */
+const revDlg = document.getElementById('rev');
+document.getElementById('make').onclick = ()=>{
   state.note  = document.getElementById('note').value;
   state.nnote = document.getElementById('nnote').value;
 
+  const issues = validateReport();
+  const errs = issues.filter(i=>i.lv==='err');
+
+  document.getElementById('revText').textContent = build(previewAcct());
+  document.getElementById('revIssues').innerHTML = issues.length
+    ? issues.map(i=>`<div class="sum" style="margin-bottom:6px; border-color:${i.lv==='err'?'var(--accent)':'var(--accent2)'}">
+         ${i.lv==='err'?'🛑':'⚠️'} ${i.m}</div>`).join('')
+    : '<div class="sum" style="border-color:var(--ok)">✅ 記入漏れは見つかりませんでした</div>';
+  document.getElementById('revHead').textContent = errs.length
+    ? '🛑 送信できない項目があります。「修正する」で直してください。'
+    : (issues.length ? '⚠️ 気になる点があります。問題なければ送信してください。'
+                     : '内容を確認して送信してください。');
+
+  const sendBtn = document.getElementById('revSend');
+  sendBtn.disabled = errs.length > 0;
+  sendBtn.style.opacity = errs.length ? .4 : 1;
+  revDlg.showModal();
+};
+document.getElementById('revBack').onclick = ()=> revDlg.close();
+document.getElementById('revSend').onclick = ()=>{ revDlg.close(); commitReport(); };
+
+/* レビュー表示用の証跡（実際の保存時にも同じ形で作り直す） */
+function previewAcct(){
+  const dISO = (state.date || fmtDate(new Date())).slice(0,10);
+  const siteName = state.site || '（現場未指定）';
+  const prev = reports.find(r => r.d===dISO && r.site===siteName);
+  const stamp = nowStamp(), creator = state.creator || '（未選択）';
+  let a = `\n【作成者・記録】\n作成者　　：${prev ? (prev.createdBy||creator) : creator}\n作成日時　：${prev ? (prev.createdAt||stamp) : stamp}`;
+  if(prev) a += `\n最終更新者：${creator}\n最終更新　：${stamp}`;
+  return a + `\nIPアドレス：${myIP || '取得できず'}`;
+}
+
+/* ★ここから先が実際の保存・送信。レビューで「保存して送信」を押したときだけ走る */
+function commitReport(){
   // 証跡：作成者・作成日時・更新履歴・IP（同じ現場×日付の既存＝更新扱い）
   const dISO = (state.date || fmtDate(new Date())).slice(0,10);
   const siteName = state.site || '（現場未指定）';
@@ -1571,7 +1879,7 @@ document.getElementById('make').onclick=()=>{
     toast('日報を作成しました（現場未選択のため累計は未保存）');
   }
   pushState();   // ★保存が全部終わった後にクラウドへ（引き継ぎ状況・siteMetaを含めて送る）
-};
+}
 document.getElementById('copy').onclick=async ()=>{
   const t=document.getElementById('out').textContent;
   if(!t || t.startsWith('下の')){ toast('先に日報を作成してください'); return; }
@@ -1584,7 +1892,7 @@ document.getElementById('copy').onclick=async ()=>{
 document.getElementById('reset').onclick=()=>{
   if(!confirm('入力内容をクリアしますか？')) return;
   state.site=null; state.weather=null; state.hours=null; state.crew=3;
-  state.steps.clear(); state.nsteps.clear(); state.used={}; state.need={};
+  state.steps.clear(); state.nsteps.clear(); state.used={}; state.need={}; state.have={};
   state.photos=[]; state.stepStatus={}; state.ninPrev=0;
   state.stepAreas={}; state.nstepAreas={}; state.stepPhotos={}; state.workers={}; stepPhotoOpen=null;
   rosterOpen=false; sitePanelOpen=false; tagFilter=null; document.getElementById('siteSearch').value='';
@@ -1633,6 +1941,8 @@ function initNotifyUI(){
   document.getElementById('cfgUrl').value = cfg.url;
   document.getElementById('cfgEmails').value = cfg.emails;
   document.getElementById('cfgEnabled').checked = !!cfg.enabled;
+  document.getElementById('cfgZGas').value = zCfg.gas;
+  document.getElementById('cfgZApp').value = zCfg.app;
   const status = document.getElementById('cfgStatus');
   document.getElementById('cfgSave').onclick = ()=>{
     const c = {
@@ -1642,8 +1952,20 @@ function initNotifyUI(){
     };
     if(c.enabled && !c.url){ status.textContent='⚠️ URLを入力してください'; return; }
     save(LS.notify, c);
+    zCfg = { gas: document.getElementById('cfgZGas').value.trim(),
+             app: document.getElementById('cfgZApp').value.trim() };
+    save(LSZ.cfg, zCfg);
     status.textContent = '✅ 保存しました' + (c.enabled ? '（自動通知ON）' : '（自動通知OFF）');
     updateNotifyBadge();
+    renderNeedStock();
+  };
+  document.getElementById('cfgZTest').onclick = ()=>{
+    zCfg = { gas: document.getElementById('cfgZGas').value.trim(),
+             app: document.getElementById('cfgZApp').value.trim() };
+    save(LSZ.cfg, zCfg);
+    if(!zCfg.gas){ status.textContent='⚠️ 在庫用GASのURLを入力してください'; return; }
+    status.textContent = '📦 在庫を読み込み中…';
+    zLoad(false).then(()=>{ status.textContent = `📦 在庫 ${zCache.materials.length}件を読み込みました`; });
   };
   document.getElementById('cfgShare').onclick = ()=>{
     const url = document.getElementById('cfgUrl').value.trim();
@@ -1787,6 +2109,7 @@ function applySetupLink(){
 state.date = fmtDate(new Date());
 applySetupLink();
 render();
+zLoad(true);        // 在庫は起動時に静かに読み込む（未連携なら何もしない）
 initNotifyUI();
 if(notifyCfg().url) cloudSync(false, true);   // 起動時：クラウドから読み込み（無音・他端末の入力を反映）
 </script>
