@@ -531,10 +531,13 @@ const ninToday = () => {
   return state.hours ? +(state.crew * HFACTOR[state.hours]).toFixed(1) : 0;
 };
 const ninTotal = () => +(state.ninPrev + ninToday()).toFixed(1);
+/* 日報の保存キーになる日付（例 2026/11/17）。未選択なら今日 */
+const reportDay = () => (state.date || fmtDate(new Date())).slice(0,10);
+/* 同じ現場×同じ日付の保存済み日報（あれば上書き更新になる） */
+const findReport = (d, site) => reports.find(r => r.d===d && r.site===site);
 /* 選択中の日付で、その現場に「既に保存済みの本日ぶん人工」を返す（同日再保存の二重計上を防ぐ基準） */
 const recordedTodayNin = (site) => {
-  const dISO = (state.date || fmtDate(new Date())).slice(0,10);
-  const r = reports.find(x => x.d===dISO && x.site===site);
+  const r = findReport(reportDay(), site);
   return r ? (r.nin || 0) : 0;
 };
 /* 現場の累計から本日保存分を除いた「前回までの人工」 */
@@ -580,23 +583,27 @@ const stOf = w => norm(state.stepStatus[w]).s;
 
 const toast = m => { const t=document.getElementById('toast'); t.textContent=m; t.classList.add('on'); setTimeout(()=>t.classList.remove('on'),1600) };
 
+/* ---------- チップ部品 ---------- */
+/* チップ1個を作って親に足す（cls：'on' / 'del-mode' / 'add' など。空なら素のチップ） */
+function chip(parent, text, cls, onclick){
+  const b = document.createElement('div');
+  b.className = 'chip' + (cls ? ' ' + cls : '');
+  b.textContent = text;
+  b.onclick = onclick;
+  parent.appendChild(b);
+  return b;
+}
+/* 削除モードの切り替えチップ（🗑 削除 ⇔ ✔ 削除おわり） */
+const delToggleChip = (parent, on, onclick) => chip(parent, on ? '✔ 削除おわり' : '🗑 削除', 'add', onclick);
+/* リスト項目チップ：削除モード中は「✕ 名前」、通常は選択状態で色分け */
+const itemChip = (parent, text, delMode, on, onclick) =>
+  chip(parent, (delMode ? '✕ ' : '') + text, delMode ? 'del-mode' : (on ? 'on' : ''), onclick);
+
 /* ---------- 汎用チップ描画 ---------- */
-function chips(elId, items, isOn, onTap, addLabel, onAdd){
+function chips(elId, items, isOn, onTap){
   const el = document.getElementById(elId);
   el.innerHTML = '';
-  items.forEach(v=>{
-    const b = document.createElement('div');
-    b.className = 'chip' + (isOn(v) ? ' on' : '');
-    b.textContent = v;
-    b.onclick = ()=>{ onTap(v); render(); };
-    el.appendChild(b);
-  });
-  if(addLabel){
-    const a = document.createElement('div');
-    a.className='chip add'; a.textContent = addLabel;
-    a.onclick = onAdd;
-    el.appendChild(a);
-  }
+  items.forEach(v=> chip(el, v, isOn(v) ? 'on' : '', ()=>{ onTap(v); render(); }));
 }
 
 /* ---------- 現場チップ（直近のみ表示＋検索） ---------- */
@@ -614,32 +621,19 @@ function siteChips(){
   let list = byRecent.slice(0, RECENT_SITES);
   if(state.site && !list.includes(state.site)) list.unshift(state.site);
 
-  list.forEach(v=>{
-    const b = document.createElement('div');
-    b.className = 'chip' + (state.site===v ? ' on' : '');
-    b.textContent = v;
-    b.onclick = ()=>{ selectSite(v); render(); };
-    el.appendChild(b);
-  });
+  list.forEach(v=> chip(el, v, state.site===v ? 'on' : '', ()=>{ selectSite(v); render(); }));
 
-  const t = document.createElement('div');
-  t.className='chip add';
-  t.textContent = sitePanelOpen ? '▲ 一覧を閉じる' : `📋 一覧（全${sites.length}件）`;
-  t.onclick = ()=>{
+  chip(el, sitePanelOpen ? '▲ 一覧を閉じる' : `📋 一覧（全${sites.length}件）`, 'add', ()=>{
     sitePanelOpen = !sitePanelOpen;
     render();
     if(sitePanelOpen) setTimeout(()=>document.getElementById('siteSearch').focus(),50);
-  };
-  el.appendChild(t);
+  });
 
-  const a = document.createElement('div');
-  a.className='chip add'; a.textContent='＋ 現場を追加';
-  a.onclick = ()=>ask('現場名を追加', v=>{
+  chip(el, '＋ 現場を追加', 'add', ()=>ask('現場名を追加', v=>{
     if(!sites.includes(v)){ sites.push(v); save(LS.sites,sites); }
     if(state.site !== v) selectSite(v);      // 追加した現場をそのまま選択
     render();
-  });
-  el.appendChild(a);
+  }));
 
   document.getElementById('sitePanel').style.display = sitePanelOpen ? 'block' : 'none';
   document.getElementById('siteHint').textContent = sitePanelOpen
@@ -652,27 +646,11 @@ function siteChips(){
 function renderSitePanel(){
   const sorts = [['recent','📅 直近順'],['name','🔤 名前順'],['nin','👷 人工順']];
   const sc = document.getElementById('siteSortChips'); sc.innerHTML='';
-  sorts.forEach(([k,label])=>{
-    const b=document.createElement('div');
-    b.className='chip'+(siteSort===k?' on':'');
-    b.textContent=label;
-    b.onclick=()=>{ siteSort=k; renderSitePanel(); };
-    sc.appendChild(b);
-  });
+  sorts.forEach(([k,label])=> chip(sc, label, siteSort===k ? 'on' : '', ()=>{ siteSort=k; renderSitePanel(); }));
 
   const tf = document.getElementById('siteTagFilter'); tf.innerHTML='';
-  const all=document.createElement('div');
-  all.className='chip'+(tagFilter===null?' on':'');
-  all.textContent='すべて';
-  all.onclick=()=>{ tagFilter=null; renderSitePanel(); };
-  tf.appendChild(all);
-  TAGS.forEach(tag=>{
-    const b=document.createElement('div');
-    b.className='chip'+(tagFilter===tag?' on':'');
-    b.textContent='🏷 '+tag;
-    b.onclick=()=>{ tagFilter=(tagFilter===tag?null:tag); renderSitePanel(); };
-    tf.appendChild(b);
-  });
+  chip(tf, 'すべて', tagFilter===null ? 'on' : '', ()=>{ tagFilter=null; renderSitePanel(); });
+  TAGS.forEach(tag=> chip(tf, '🏷 '+tag, tagFilter===tag ? 'on' : '', ()=>{ tagFilter=(tagFilter===tag?null:tag); renderSitePanel(); }));
 
   const q = document.getElementById('siteSearch').value.trim();
   let list=[...sites];
@@ -716,10 +694,7 @@ function drawTdlg(){
   TAGS.forEach(tag=>{
     const cur=siteTags[tdSite]||[];
     const on=cur.includes(tag);
-    const b=document.createElement('div');
-    b.className='chip'+(editTagMode?' del-mode':(on?' on':''));
-    b.textContent=(editTagMode?'✕ ':'')+tag;
-    b.onclick=()=>{
+    itemChip(c, tag, editTagMode, on, ()=>{
       if(editTagMode){
         if(confirm(`タグ「${tag}」をリストから削除しますか？`)){
           TAGS=TAGS.filter(x=>x!==tag); save(LS.taglist,TAGS);
@@ -736,22 +711,15 @@ function drawTdlg(){
         save(LS.tags,siteTags);
       }
       drawTdlg(); if(sitePanelOpen) renderSitePanel();
-    };
-    c.appendChild(b);
+    });
   });
-  const add=document.createElement('div');
-  add.className='chip add'; add.textContent='＋ タグを追加';
-  add.onclick=()=>ask('タグを追加（例：外壁のみ）', v=>{
+  chip(c, '＋ タグを追加', 'add', ()=>ask('タグを追加（例：外壁のみ）', v=>{
     if(!TAGS.includes(v)){ TAGS.push(v); save(LS.taglist,TAGS); }
     const cur=siteTags[tdSite]||[];
     if(!cur.includes(v)){ siteTags[tdSite]=[...cur,v]; save(LS.tags,siteTags); }
     drawTdlg(); if(sitePanelOpen) renderSitePanel();
-  });
-  c.appendChild(add);
-  const ed=document.createElement('div');
-  ed.className='chip add'; ed.textContent=editTagMode?'✔ 削除おわり':'🗑 削除';
-  ed.onclick=()=>{ editTagMode=!editTagMode; drawTdlg(); };
-  c.appendChild(ed);
+  }));
+  delToggleChip(c, editTagMode, ()=>{ editTagMode=!editTagMode; drawTdlg(); });
 }
 document.getElementById('tdClose').onclick=()=>{ editTagMode=false; tdlg.close(); if(sitePanelOpen) renderSitePanel(); };
 
@@ -767,28 +735,19 @@ function renderWorkers(){
   Object.keys(state.workers).forEach(n=>{
     const eff = effKey(state.workers[n]);
     const same = eff === baseKey();          // その日の作業時間と同じ人は名前だけ
-    const b = document.createElement('div');
-    b.className = 'chip ' + (same ? 'on' : 'st-partial');
-    b.textContent = n + (same ? '' : `（${{full:'終日',am:'午前',pm:'午後'}[eff]}）`);
-    b.onclick = ()=> openWorkerDlg(n);
-    selEl.appendChild(b);
+    chip(selEl, n + (same ? '' : `（${{full:'終日',am:'午前',pm:'午後'}[eff]}）`),
+         same ? 'on' : 'st-partial', ()=> openWorkerDlg(n));
   });
 
   // 名簿（普段は隠れている・タップで出し入れ）
   const el = document.getElementById('workerRoster');
   el.innerHTML = '';
-  const t = document.createElement('div');
-  t.className='chip add';
-  t.textContent = rosterOpen ? '▲ 名簿を閉じる' : `👷 名簿から選ぶ（全${WORKERS.length}人）`;
-  t.onclick = ()=>{ rosterOpen = !rosterOpen; render(); };
-  el.appendChild(t);
+  chip(el, rosterOpen ? '▲ 名簿を閉じる' : `👷 名簿から選ぶ（全${WORKERS.length}人）`, 'add',
+       ()=>{ rosterOpen = !rosterOpen; render(); });
   if(rosterOpen){
     WORKERS.forEach(n=>{
       const on = !!state.workers[n];
-      const b = document.createElement('div');
-      b.className = 'chip' + (edit.workers ? ' del-mode' : (on ? ' on' : ''));
-      b.textContent = (edit.workers ? '✕ ' : '') + n;
-      b.onclick = ()=>{
+      itemChip(el, n, edit.workers, on, ()=>{
         if(edit.workers){
           if(confirm(`作業者「${n}」を名簿から削除しますか？`)){
             WORKERS = WORKERS.filter(x=>x!==n); save(LS.workers, WORKERS);
@@ -800,23 +759,15 @@ function renderWorkers(){
           syncCrew();
         }
         render();
-      };
-      el.appendChild(b);
+      });
     });
-    const ed = document.createElement('div');
-    ed.className='chip add';
-    ed.textContent = edit.workers ? '✔ 削除おわり' : '🗑 削除';
-    ed.onclick = ()=>{ edit.workers = !edit.workers; render(); };
-    el.appendChild(ed);
+    delToggleChip(el, edit.workers, ()=>{ edit.workers = !edit.workers; render(); });
   }
-  const a = document.createElement('div');
-  a.className='chip add'; a.textContent='＋ 作業者を追加';
-  a.onclick = ()=>ask('作業者の名前を追加', v=>{
+  chip(el, '＋ 作業者を追加', 'add', ()=>ask('作業者の名前を追加', v=>{
     if(!WORKERS.includes(v)){ WORKERS.push(v); save(LS.workers, WORKERS); }
     if(!state.workers[v]) state.workers[v] = 'day';    // 追加したらそのまま本日に選択（その日の時間に追従）
     syncCrew(); render();
-  });
-  el.appendChild(a);
+  }));
 
   document.getElementById('crewHint').textContent =
     Object.keys(state.workers).length ? '※作業者から自動' : '';
@@ -827,10 +778,7 @@ function renderCreator(){
   const el = document.getElementById('creatorSel');
   el.innerHTML = '';
   CREATORS.forEach(n=>{
-    const b = document.createElement('div');
-    b.className = 'chip' + (edit.creator ? ' del-mode' : (state.creator===n ? ' on' : ''));
-    b.textContent = (edit.creator ? '✕ ' : '') + n;
-    b.onclick = ()=>{
+    itemChip(el, n, edit.creator, state.creator===n, ()=>{
       if(edit.creator){
         if(confirm(`「${n}」を作成者リストから外しますか？（作業者名簿には残ります）`)){
           CREATORS = CREATORS.filter(x=>x!==n); save(LS.creators, CREATORS);
@@ -841,22 +789,15 @@ function renderCreator(){
         save(LS.creator, state.creator);
       }
       render();
-    };
-    el.appendChild(b);
+    });
   });
-  const a = document.createElement('div');
-  a.className='chip add'; a.textContent='＋ 作成者を追加';
-  a.onclick = ()=>ask('作成者の名前を追加', v=>{
+  chip(el, '＋ 作成者を追加', 'add', ()=>ask('作成者の名前を追加', v=>{
     if(!WORKERS.includes(v)){ WORKERS.push(v); save(LS.workers, WORKERS); }   // 追加は名簿と共用
     if(!CREATORS.includes(v)){ CREATORS.push(v); save(LS.creators, CREATORS); }
     state.creator = v; save(LS.creator, state.creator);
     render();
-  });
-  el.appendChild(a);
-  const e = document.createElement('div');
-  e.className='chip add'; e.textContent = edit.creator ? '✔ 削除おわり' : '🗑 削除';
-  e.onclick = ()=>{ edit.creator = !edit.creator; render(); };
-  el.appendChild(e);
+  }));
+  delToggleChip(el, edit.creator, ()=>{ edit.creator = !edit.creator; render(); });
   document.getElementById('creatorHint').innerHTML = state.creator
     ? `作成者：<b>${state.creator}</b>　／　IP：${myIP || '取得中…'}（記録されます）`
     : '⚠️ 作成者を選んでください（日報の証跡になります）。';
@@ -987,10 +928,7 @@ function matChips(elId, store){
   const el = document.getElementById(elId);
   el.innerHTML = '';
   mats.forEach(v=>{
-    const b = document.createElement('div');
-    b.className = 'chip' + (edit.mats ? ' del-mode' : (store[v] ? ' on' : ''));
-    b.textContent = (edit.mats ? '✕ ' : '') + v;
-    b.onclick = ()=>{
+    itemChip(el, v, edit.mats, !!store[v], ()=>{
       if(edit.mats){
         if(confirm(`材料「${v}」をリストから削除しますか？（項目4・9共通です）`)){
           mats = mats.filter(x=>x!==v); save(LS.mats, mats);
@@ -1000,21 +938,14 @@ function matChips(elId, store){
         if(store[v]) delete store[v]; else store[v] = 1;
       }
       render();
-    };
-    el.appendChild(b);
+    });
   });
-  const a = document.createElement('div');
-  a.className='chip add'; a.textContent='＋ 材料を追加';
-  a.onclick = ()=>ask('材料名を追加', v=>{
+  chip(el, '＋ 材料を追加', 'add', ()=>ask('材料名を追加', v=>{
     if(!mats.includes(v)){ mats.push(v); save(LS.mats, mats); }
     store[v] = 1;                       // 追加した材料はそのまま選択状態に
     render();
-  });
-  el.appendChild(a);
-  const e = document.createElement('div');
-  e.className='chip add'; e.textContent = edit.mats ? '✔ 削除おわり' : '🗑 削除';
-  e.onclick = ()=>{ edit.mats = !edit.mats; render(); };
-  el.appendChild(e);
+  }));
+  delToggleChip(el, edit.mats, ()=>{ edit.mats = !edit.mats; render(); });
 }
 
 /* ---------- 材料の増減 ----------
@@ -1117,10 +1048,7 @@ function stepChips(elId, isOn, onTap){
   const el = document.getElementById(elId);
   el.innerHTML = '';
   STEPS.forEach(v=>{
-    const b = document.createElement('div');
-    b.className = 'chip' + (edit.steps ? ' del-mode' : (isOn(v) ? ' on' : ''));
-    b.textContent = (edit.steps ? '✕ ' : '') + v;
-    b.onclick = ()=>{
+    itemChip(el, v, edit.steps, isOn(v), ()=>{
       if(edit.steps){
         if(confirm(`工程「${v}」をリストから削除しますか？`)){
           STEPS = STEPS.filter(x=>x!==v); save(LS.steps, STEPS);
@@ -1129,21 +1057,14 @@ function stepChips(elId, isOn, onTap){
         }
       } else onTap(v);
       render();
-    };
-    el.appendChild(b);
+    });
   });
-  const a = document.createElement('div');
-  a.className='chip add'; a.textContent='＋ 工程を追加';
-  a.onclick = ()=>ask('工程を追加（例：ベランダ防水）', v=>{
+  chip(el, '＋ 工程を追加', 'add', ()=>ask('工程を追加（例：ベランダ防水）', v=>{
     if(!STEPS.includes(v)){ STEPS.push(v); STEPS = sortSteps(STEPS); save(LS.steps, STEPS); }
     if(!isOn(v)) onTap(v);          // 追加した工程はそのまま選択状態に
     render();
-  });
-  el.appendChild(a);
-  const e = document.createElement('div');
-  e.className='chip add'; e.textContent = edit.steps ? '✔ 削除おわり' : '🗑 削除';
-  e.onclick = ()=>{ edit.steps = !edit.steps; render(); };
-  el.appendChild(e);
+  }));
+  delToggleChip(el, edit.steps, ()=>{ edit.steps = !edit.steps; render(); });
 }
 
 /* 次にやる工程：進捗のフロンティア（＝完了 or 進行中の最も後ろの工程）以降で、
@@ -1227,10 +1148,7 @@ function areaChips(container, getA, setA, redraw){
   container.innerHTML = '';
   AREAS.forEach(a=>{
     const on = getA().includes(a);
-    const b = document.createElement('div');
-    b.className = 'chip' + (edit.areas ? ' del-mode' : (on ? ' on' : ''));
-    b.textContent = (edit.areas ? '✕ ' : '') + a;
-    b.onclick = ()=>{
+    itemChip(container, a, edit.areas, on, ()=>{
       if(edit.areas){
         if(confirm(`箇所「${a}」をリストから削除しますか？`)){
           AREAS = AREAS.filter(x=>x!==a); save(LS.areas, AREAS);
@@ -1249,21 +1167,14 @@ function areaChips(container, getA, setA, redraw){
         setA(on ? getA().filter(x=>x!==a) : [...getA(), a]);
       }
       redraw(); render();
-    };
-    container.appendChild(b);
+    });
   });
-  const add = document.createElement('div');
-  add.className='chip add'; add.textContent='＋ 箇所を追加';
-  add.onclick = ()=>ask('箇所を追加（例：ベランダ・軒天）', v=>{
+  chip(container, '＋ 箇所を追加', 'add', ()=>ask('箇所を追加（例：ベランダ・軒天）', v=>{
     if(!AREAS.includes(v)){ AREAS.push(v); save(LS.areas, AREAS); }
     if(!getA().includes(v)) setA([...getA(), v]);   // 追加した箇所はそのまま選択状態に
     redraw(); render();
-  });
-  container.appendChild(add);
-  const ed = document.createElement('div');
-  ed.className='chip add'; ed.textContent = edit.areas ? '✔ 削除おわり' : '🗑 削除';
-  ed.onclick = ()=>{ edit.areas = !edit.areas; redraw(); };
-  container.appendChild(ed);
+  }));
+  delToggleChip(container, edit.areas, ()=>{ edit.areas = !edit.areas; redraw(); });
 }
 
 /* ---------- 本日/翌日の工程 → 箇所ピッカー ---------- */
@@ -1610,14 +1521,7 @@ function zGet(){                                   // 在庫GASから一括取�
   const unwrap = r => { if(r && r.ok) return r.data; throw new Error((r&&r.error)||'不明な応答'); };
   return fetch(url).then(r=>{ if(!r.ok) throw new Error('status '+r.status); return r.json(); })
     .then(unwrap)
-    .catch(()=> new Promise((res,rej)=>{         // CORSが通らない端末向けの保険
-      const cb='nippo_z_'+Date.now(); const s=document.createElement('script');
-      const done=()=>{ try{delete window[cb];}catch(e){window[cb]=undefined;} s.remove(); };
-      window[cb]=d=>{ try{ res(unwrap(d)); }catch(e){ rej(e); } done(); };
-      s.onerror=()=>{ rej(new Error('在庫アプリに接続できません')); done(); };
-      s.src = url + '&callback=' + cb; document.body.appendChild(s);
-      setTimeout(()=>{ if(window[cb]){ rej(new Error('タイムアウト')); done(); } }, 15000);
-    }));
+    .catch(()=> jsonp(url, 'nippo_z_', '在庫アプリに接続できません').then(unwrap));   // CORSが通らない端末向けの保険
 }
 function zLoad(quiet){
   if(!zCfg.gas) return Promise.resolve();
@@ -1778,12 +1682,12 @@ function validateReport(){
   if(zShort.length) warn(`在庫が足りない材料が ${zShort.length}件 あります（${zShort.map(s=>s.name).join('、')}）。発注リストに載せましたか？`);
 
   // 日付の打ち間違い
-  const dISO = (state.date || fmtDate(new Date())).slice(0,10);
+  const dISO = reportDay();
   const today = fmtDate(new Date()).slice(0,10);
   if(dISO > today) warn(`日付が未来になっています（${dISO}）`);
 
   // 同じ現場×同じ日付が既にある＝上書き更新になる
-  const prev = reports.find(r => r.d===dISO && r.site===(state.site||'（現場未指定）'));
+  const prev = findReport(dISO, state.site||'（現場未指定）');
   if(prev) warn(`同じ現場・同じ日付の日報があります。上書き更新になります（作成：${prev.createdAt||'—'}）`);
 
   // 進捗が前回より下がっている＝工程状況の付け間違いの可能性
@@ -1820,32 +1724,27 @@ document.getElementById('make').onclick = ()=>{
 document.getElementById('revBack').onclick = ()=> revDlg.close();
 document.getElementById('revSend').onclick = ()=>{ revDlg.close(); commitReport(); };
 
-/* レビュー表示用の証跡（実際の保存時にも同じ形で作り直す） */
-function previewAcct(){
-  const dISO = (state.date || fmtDate(new Date())).slice(0,10);
-  const siteName = state.site || '（現場未指定）';
-  const prev = reports.find(r => r.d===dISO && r.site===siteName);
-  const stamp = nowStamp(), creator = state.creator || '（未選択）';
-  let a = `\n【作成者・記録】\n作成者　　：${prev ? (prev.createdBy||creator) : creator}\n作成日時　：${prev ? (prev.createdAt||stamp) : stamp}`;
-  if(prev) a += `\n最終更新者：${creator}\n最終更新　：${stamp}`;
-  return a + `\nIPアドレス：${myIP || '取得できず'}`;
-}
-
-/* ★ここから先が実際の保存・送信。レビューで「保存して送信」を押したときだけ走る */
-function commitReport(){
-  // 証跡：作成者・作成日時・更新履歴・IP（同じ現場×日付の既存＝更新扱い）
-  const dISO = (state.date || fmtDate(new Date())).slice(0,10);
+/* 証跡：作成者・作成日時・更新履歴・IP（同じ現場×日付の既存＝更新扱い）。
+   レビュー表示と実際の保存で同じものを使う */
+function reportTrail(){
+  const dISO = reportDay();
   const siteName = state.site || '（現場未指定）';
   const stamp = nowStamp();
   const creator = state.creator || '（未選択）';
-  const prev = reports.find(r => r.d===dISO && r.site===siteName);
+  const prev = findReport(dISO, siteName);
   const createdAt = prev ? (prev.createdAt || stamp) : stamp;
   const createdBy = prev ? (prev.createdBy || creator) : creator;
   const isUpdate  = !!prev;
-
   let acct = `\n【作成者・記録】\n作成者　　：${createdBy}\n作成日時　：${createdAt}`;
   if(isUpdate) acct += `\n最終更新者：${creator}\n最終更新　：${stamp}`;
   acct += `\nIPアドレス：${myIP || '取得できず'}`;
+  return { dISO, siteName, stamp, creator, prev, createdAt, createdBy, isUpdate, acct };
+}
+const previewAcct = () => reportTrail().acct;   // レビュー表示用
+
+/* ★ここから先が実際の保存・送信。レビューで「保存して送信」を押したときだけ走る */
+function commitReport(){
+  const { dISO, siteName, stamp, creator, prev, createdAt, createdBy, isUpdate, acct } = reportTrail();
 
   const text = build(acct);
   document.getElementById('out').textContent = text;
@@ -1874,7 +1773,7 @@ function commitReport(){
     save(LS.nin, ninStore);
     siteMeta[state.site] = { at: Date.now(), by: creator };   // クラウド同期の新旧判定用
     save(LS.sitemeta, siteMeta);
-    toast(`日報作成 / ${state.site}：進捗 ${progressPct()}% ・累計 ${newNin.toFixed(1)}人工を保存`);
+    toast(`日報作成 / ${state.site}：進捗 ${progressPct()}% ・累計 ${ninStore[state.site].toFixed(1)}人工を保存`);
   } else {
     toast('日報を作成しました（現場未選択のため累計は未保存）');
   }
@@ -1929,6 +1828,12 @@ function pushState(){                          // 引き継ぎ・現場一覧を
   const cfg = notifyCfg();
   if(cfg.url) postGAS(cfg.url, { kind:'state', state: localStateBlob() }, '');
 }
+/* 設定欄の在庫アプリURLを読み取って保存 */
+function saveZCfgFromForm(){
+  zCfg = { gas: document.getElementById('cfgZGas').value.trim(),
+           app: document.getElementById('cfgZApp').value.trim() };
+  save(LSZ.cfg, zCfg);
+}
 function initNotifyUI(){
   // 設定は普段たたんでおく（URL・メールの誤操作防止）。⚙をタップで開閉
   document.getElementById('cfgToggle').onclick = ()=>{
@@ -1952,17 +1857,13 @@ function initNotifyUI(){
     };
     if(c.enabled && !c.url){ status.textContent='⚠️ URLを入力してください'; return; }
     save(LS.notify, c);
-    zCfg = { gas: document.getElementById('cfgZGas').value.trim(),
-             app: document.getElementById('cfgZApp').value.trim() };
-    save(LSZ.cfg, zCfg);
+    saveZCfgFromForm();
     status.textContent = '✅ 保存しました' + (c.enabled ? '（自動通知ON）' : '（自動通知OFF）');
     updateNotifyBadge();
     renderNeedStock();
   };
   document.getElementById('cfgZTest').onclick = ()=>{
-    zCfg = { gas: document.getElementById('cfgZGas').value.trim(),
-             app: document.getElementById('cfgZApp').value.trim() };
-    save(LSZ.cfg, zCfg);
+    saveZCfgFromForm();
     if(!zCfg.gas){ status.textContent='⚠️ 在庫用GASのURLを入力してください'; return; }
     status.textContent = '📦 在庫を読み込み中…';
     zLoad(false).then(()=>{ status.textContent = `📦 在庫 ${zCache.materials.length}件を読み込みました`; });
@@ -2056,17 +1957,18 @@ async function cloudGet(baseUrl){
     if(r.ok) return await r.json();
     throw new Error('status ' + r.status);
   }catch(e){
-    return await jsonpGet(baseUrl);                  // 一部環境向けの保険
+    return await jsonp(u, 'nippo_jsonp_', '接続エラー');   // 一部環境向けの保険
   }
 }
-function jsonpGet(url){
+/* JSONPで読む（fetchがCORSで通らない端末向け）。日報の同期と在庫の読込で共用。15秒でタイムアウト */
+function jsonp(url, prefix, connErr){
   return new Promise((resolve, reject)=>{
-    const cb = 'nippo_jsonp_' + Date.now() + Math.floor(Math.random()*1000);
+    const cb = prefix + Date.now() + Math.floor(Math.random()*1000);
     const s = document.createElement('script');
-    const done = ok => { try{ delete window[cb]; }catch(e){ window[cb]=undefined; } s.remove(); };
+    const done = () => { try{ delete window[cb]; }catch(e){ window[cb]=undefined; } s.remove(); };
     window[cb] = data => { resolve(data); done(); };
-    s.onerror = () => { reject(new Error('接続エラー')); done(); };
-    s.src = url + (url.includes('?')?'&':'?') + 'action=getState&callback=' + cb;
+    s.onerror = () => { reject(new Error(connErr)); done(); };
+    s.src = url + (url.includes('?')?'&':'?') + 'callback=' + cb;
     document.body.appendChild(s);
     setTimeout(()=>{ if(window[cb]){ reject(new Error('タイムアウト')); done(); } }, 15000);
   });
@@ -2080,7 +1982,7 @@ async function cloudSync(push, quiet){
   if(btn) btn.textContent = '🔄 同期中…';
   try{
     if(push){                                       // 自分の状態をクラウドへ送る
-      postGAS(cfg.url, { kind:'state', state: localStateBlob() }, '');
+      pushState();
       await new Promise(r=>setTimeout(r, 1500));     // 反映を待ってから読む
     }
     const remote = await cloudGet(cfg.url);          // クラウドから最新を読む（fetch優先）
